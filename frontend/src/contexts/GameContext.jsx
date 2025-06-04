@@ -6,7 +6,6 @@ import {
   subscribeToGameCreated,
   subscribeToPlayerJoined,
   subscribeToDiceResult,
-  // We'll add more subscribes in Iter 2
 } from "../utils/socket.jsx";
 
 export const GameContext = createContext();
@@ -16,20 +15,28 @@ export function GameProvider({ children }) {
   const [screen, setScreen] = useState("Landing"); // "Landing", "Join", "Settings", "GameBoard"
   const [gameId, setGameId] = useState("");
   const [playerInfo, setPlayerInfo] = useState({ name: "", id: "" });
-  const [players, setPlayers] = useState([]); // array of { player_id, player_name }
   const [diceResult, setDiceResult] = useState(null);
-
-  // Called by LandingScreen to create a game
+  const [gameState, setGameState] = useState(null); // full snapshot from backend
+  // Called by LandingScreen to create a new game
   const createGame = (playerName) => {
     const s = initSocket();
     setSocket(s);
-    // Once the backend emits "game_created", we get the new gameId and immediately join
+
+    // Subscribe early so we catch the "player_joined" for ourselves
+    subscribeToPlayerJoined(s, ({ player_id, player_name }) => {
+      if (player_name === playerName) {
+        setPlayerInfo({ name: player_name, id: player_id });
+        setScreen("GameBoard");
+      }
+      // ignore other players joining
+    });
+
+    // Once we get "game_created", grab the new ID and immediately join as playerName
     subscribeToGameCreated(s, ({ game_id }) => {
       setGameId(game_id);
       emitJoinGame(s, game_id, playerName);
-      setPlayerInfo((prev) => ({ ...prev, name: playerName }));
-      setScreen("GameBoard");
     });
+
     emitCreateGame(s);
   };
 
@@ -37,15 +44,19 @@ export function GameProvider({ children }) {
   const joinGame = (enteredGameId, playerName) => {
     const s = initSocket();
     setSocket(s);
+
+    // Subscribe so we catch the "player_joined" for ourselves
     subscribeToPlayerJoined(s, ({ player_id, player_name }) => {
-      // If this event is for us, store our player_id
-      // Note: for now, everyone in the room gets this event. We’ll refine filtering in Iter 2.
-      setPlayerInfo({ name: player_name, id: player_id });
-      setScreen("GameBoard");
+      if (player_name === playerName) {
+        setPlayerInfo({ name: player_name, id: player_id });
+        setScreen("GameBoard");
+      }
+      // ignore other players joining
     });
+
     emitJoinGame(s, enteredGameId, playerName);
     setGameId(enteredGameId);
-    setPlayerInfo((prev) => ({ ...prev, name: playerName }));
+    // playerInfo will be set when "player_joined" arrives
   };
 
   useEffect(() => {
@@ -53,11 +64,14 @@ export function GameProvider({ children }) {
     subscribeToDiceResult(socket, (data) => {
       setDiceResult(data.dice);
     });
-    // In Iter 2, subscribe to more events (property_bought, turn_changed, etc.)
+    socket.on("state_update", (newState) => {
+      setGameState(newState);
+    });
   }, [socket]);
 
   const rollDice = () => {
     if (!socket || !gameId || !playerInfo.id) return;
+     if (gameState && gameState.currentTurn !== playerInfo.id) return;
     socket.emit("roll_dice", { game_id: gameId, player_id: playerInfo.id });
   };
 
@@ -71,8 +85,8 @@ export function GameProvider({ children }) {
         rollDice,
         gameId,
         playerInfo,
-        players,
         diceResult,
+        gameState
       }}
     >
       {children}

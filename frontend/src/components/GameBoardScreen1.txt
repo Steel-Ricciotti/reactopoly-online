@@ -11,7 +11,7 @@ export default function GameBoardScreen() {
 
   const { players, playerOrder, currentTurn } = gameState;
 
-  // Build a 40‐cell board: array [0,1,…,39]
+  // Build a 40‐cell board: just an array [0,1,2,...,39]
   const boardSpaces = Array.from({ length: 40 }, (_, i) => i);
 
   // Helper: get token(s) on a given position
@@ -19,16 +19,13 @@ export default function GameBoardScreen() {
     return playerOrder
       .filter((pid) => players[pid].position === pos)
       .map((pid) => (
-        <span
-          key={pid}
-          className="inline-block w-4 h-4 bg-blue-500 text-xs text-white text-center rounded-full m-0.5"
-        >
+        <span key={pid} className="inline-block w-4 h-4 bg-blue-500 text-xs text-white text-center rounded-full m-0.5">
           {players[pid].name[0].toUpperCase()}
         </span>
       ));
   };
 
-  // Determine if it's this client’s turn
+  // Is it *my* turn?
   const isMyTurn = currentTurn === playerInfo.id;
 
   return (
@@ -40,7 +37,6 @@ export default function GameBoardScreen() {
       <p className="mb-4">
         Current Turn: <strong>{players[currentTurn].name}</strong>
       </p>
-
       {isMyTurn ? (
         <button
           className="bg-purple-600 text-white px-4 py-2 rounded mb-4"
@@ -49,30 +45,22 @@ export default function GameBoardScreen() {
           Roll Dice
         </button>
       ) : (
-        <button
-          className="bg-gray-400 text-white px-4 py-2 rounded mb-4"
-          disabled
-        >
+        <button className="bg-gray-400 text-white px-4 py-2 rounded mb-4" disabled>
           Not Your Turn
         </button>
       )}
-
       {diceResult && (
         <p className="mb-4">
           Last Roll: {diceResult[0]} + {diceResult[1]}
         </p>
       )}
-
       <div className="grid grid-cols-8 gap-1">
         {boardSpaces.map((spaceIdx) => (
           <div
             key={spaceIdx}
-            data-testid={`space-${spaceIdx}`}
             className="h-16 w-16 bg-white border flex items-center justify-center relative"
           >
-            <div className="absolute top-0 left-0 text-xs text-gray-500 p-1">
-              {spaceIdx}
-            </div>
+            <div className="absolute top-0 left-0 text-xs text-gray-500 p-1">{spaceIdx}</div>
             <div className="flex">{tokensAt(spaceIdx)}</div>
           </div>
         ))}
