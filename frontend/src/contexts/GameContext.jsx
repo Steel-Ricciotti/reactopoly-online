@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect } from "react";
+// frontend/src/contexts/GameContext.jsx
+import React, { createContext, useState } from "react";
 import {
   initSocket,
   createGame as emitCreateGame,
@@ -12,26 +13,32 @@ export const GameContext = createContext();
 
 export function GameProvider({ children }) {
   const [socket, setSocket] = useState(null);
-  const [screen, setScreen] = useState("Landing"); // "Landing", "Join", "Settings", "GameBoard"
+  const [screen, setScreen] = useState("Landing");
   const [gameId, setGameId] = useState("");
   const [playerInfo, setPlayerInfo] = useState({ name: "", id: "" });
   const [diceResult, setDiceResult] = useState(null);
-  const [gameState, setGameState] = useState(null); // full snapshot from backend
-  // Called by LandingScreen to create a new game
-  const createGame = (playerName) => {
-    const s = initSocket();
-    setSocket(s);
+  const [gameState, setGameState] = useState(null);
 
-    // Subscribe early so we catch the "player_joined" for ourselves
+  const setupSocketListeners = (s, localName) => {
+    s.on("state_update", (newState) => {
+      setGameState(newState);
+    });
+    subscribeToDiceResult(s, (data) => {
+      setDiceResult(data.dice);
+    });
     subscribeToPlayerJoined(s, ({ player_id, player_name }) => {
-      if (player_name === playerName) {
+      if (player_name === localName) {
         setPlayerInfo({ name: player_name, id: player_id });
         setScreen("GameBoard");
       }
-      // ignore other players joining
     });
+  };
 
-    // Once we get "game_created", grab the new ID and immediately join as playerName
+  const createGame = (playerName) => {
+    const s = initSocket();
+    setupSocketListeners(s, playerName);
+    setSocket(s);
+
     subscribeToGameCreated(s, ({ game_id }) => {
       setGameId(game_id);
       emitJoinGame(s, game_id, playerName);
@@ -40,38 +47,18 @@ export function GameProvider({ children }) {
     emitCreateGame(s);
   };
 
-  // Called by JoinGameScreen to join an existing game
   const joinGame = (enteredGameId, playerName) => {
     const s = initSocket();
+    setupSocketListeners(s, playerName);
     setSocket(s);
-
-    // Subscribe so we catch the "player_joined" for ourselves
-    subscribeToPlayerJoined(s, ({ player_id, player_name }) => {
-      if (player_name === playerName) {
-        setPlayerInfo({ name: player_name, id: player_id });
-        setScreen("GameBoard");
-      }
-      // ignore other players joining
-    });
 
     emitJoinGame(s, enteredGameId, playerName);
     setGameId(enteredGameId);
-    // playerInfo will be set when "player_joined" arrives
   };
-
-  useEffect(() => {
-    if (!socket) return;
-    subscribeToDiceResult(socket, (data) => {
-      setDiceResult(data.dice);
-    });
-    socket.on("state_update", (newState) => {
-      setGameState(newState);
-    });
-  }, [socket]);
 
   const rollDice = () => {
     if (!socket || !gameId || !playerInfo.id) return;
-     if (gameState && gameState.currentTurn !== playerInfo.id) return;
+    if (gameState && gameState.currentTurn !== playerInfo.id) return;
     socket.emit("roll_dice", { game_id: gameId, player_id: playerInfo.id });
   };
 
@@ -86,7 +73,7 @@ export function GameProvider({ children }) {
         gameId,
         playerInfo,
         diceResult,
-        gameState
+        gameState,
       }}
     >
       {children}

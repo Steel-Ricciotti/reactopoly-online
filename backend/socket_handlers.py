@@ -1,7 +1,5 @@
 # backend/socket_handlers.py
 import logging
-from fastapi import HTTPException
-
 from game_manager import GameManager
 
 logger = logging.getLogger("socketio")
@@ -17,7 +15,6 @@ def register_socket_handlers(sio):
     @sio.event
     async def disconnect(sid):
         logger.debug(f"[disconnect] Client disconnected: {sid}")
-        # (Later: handle removing players / marking bankrupt)
 
     @sio.event
     async def create_game(sid, data):
@@ -38,18 +35,15 @@ def register_socket_handlers(sio):
             await sio.emit("error", {"message": "Invalid game_id"}, to=sid)
             return
 
-        # Put this socket in the room
         await sio.enter_room(sid, game_id)
-
-        # Broadcast to everyone: a new player joined
         await sio.emit(
             "player_joined",
             {"player_id": player_id, "player_name": player_name},
             room=game_id
         )
 
-        # Additionally, send the full game state so clients know initial turn/order
         state = gm._snapshot(gm.rooms[game_id])
+        logger.debug(f"[join_game] Emitting state_update for {game_id}: {state}")
         await sio.emit("state_update", state, room=game_id)
 
     @sio.event
@@ -60,15 +54,13 @@ def register_socket_handlers(sio):
             await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
             return
         try:
-            # Perform roll & move (may raise PermissionError or ValueError)
             new_state = gm.roll_and_move(game_id, player_id)
         except PermissionError as e:
-            # e.g. “not your turn” or “in jail”
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
         except ValueError as e:
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
 
-        # Broadcast the updated game state to everyone
+        logger.debug(f"[roll_dice] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
