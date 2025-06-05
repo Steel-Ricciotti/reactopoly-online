@@ -5,6 +5,33 @@ GameManager v2: add turn order, player positions, money, and basic roll logic.
 
 import random
 import uuid
+from typing import Optional
+
+PROPERTY_DATA = {
+1	 ( "Mediterranean Avenue"	,	60	6	),
+5	 ( "Reading Railroad"	,	200	50	),
+8	 ( "Vermont Avenue"	,	120	 ,14	),
+9	 ( "Connecticut Avenue"	,	140	 ,14	),
+12	 ( "Electric Company"	,	75	15	),
+13	 ( "States Avenue"	,	140	 ,14	),
+15	 ( "Pennsylvania Railroad"	,	200	25	),
+16	 ( "St. James Place"	,	160	20	),
+18	 ( "Tennessee Avenue"	,	160	22	),
+19	 ( "New York Avenue"	,	180	26	),
+21	 ( "Kentucky Avenue"	,	200	26	),
+23	 ( "Indiana Avenue"	,	220	28	),
+25	 ( "B&O Railroad"	,	200	25	),
+26	 ( "Atlantic Avenue"	,	300	32	),
+28	 ( "Water Works"	,	75	15	),
+31	 ( "Pacific Avenue"	,	340	32	),
+32	 ( "North Carolina Avenue"	,	340	34	),
+34	 ( "Pennsylvania Avenue"	,	200	25	),
+35	 ( "Short Line"	,	200	25	),
+37	 ( "Park Place"	,	340	35	),
+39	 ( "Boardwalk"	,	400	50	),
+
+}
+
 
 BOARD_SIZE = 40
 PASS_GO_CASH = 200
@@ -24,9 +51,52 @@ class GameManager:
             "playerOrder": [],    # ordered list of player_ids
             "currentIndex": 0,    # index into playerOrder for whose turn it is
             # You can expand this later with property state, card decks, etc.
+            "properties": {}, 
         }
+        for idx in PROPERTY_DATA:
+            self.rooms[game_id]["properties"][idx] = None
         return game_id
 
+    def land_on_property(self, game_id: str, player_id: str) -> dict:
+        room = self.rooms[game_id]
+        player = room["players"][player_id]
+        pos = player["position"]
+
+        prop_info = PROPERTY_DATA.get(pos)
+        if not prop_info:
+            return {"type": "not_property"}
+
+        owner = room["properties"].get(pos)
+        name, cost, base_rent = prop_info
+
+        if owner is None:
+            return {"type": "unowned", "index": pos, "name": name, "cost": cost}
+        elif owner == player_id:
+            return {"type": "owned_by_self", "index": pos, "name": name}
+        else:
+            return {"type": "pay_rent", "index": pos, "name": name, "rent": base_rent, "owner": owner}
+
+    def buy_property(self, game_id: str, player_id: str) -> dict:
+        room = self.rooms[game_id]
+        player = room["players"][player_id]
+        pos = player["position"]
+
+        if pos not in PROPERTY_DATA:
+            raise ValueError("Not a property")
+        if room["properties"][pos] is not None:
+            raise ValueError("Already owned")
+
+        name, cost, _ = PROPERTY_DATA[pos]
+        if player["money"] < cost:
+            raise ValueError("Insufficient funds")
+
+        # Deduct cost and set ownership
+        player["money"] -= cost
+        room["properties"][pos] = player_id
+
+        # Return updated snapshot
+        return self._snapshot(room)
+        
     def add_player(self, game_id: str, player_name: str, sid: str) -> str:
         room = self.rooms.get(game_id)
         if room is None:
@@ -100,7 +170,13 @@ class GameManager:
             player["money"] += PASS_GO_CASH
 
         player["position"] = new_pos
-
+        pos = player["position"]
+        prop_data = self.land_on_property(game_id, player_id)
+        if prop_data["type"] == "pay_rent":
+            rent = prop_data["rent"]
+            owner_id = prop_data["owner"]
+            player["money"] -= rent
+            room["players"][owner_id]["money"] += rent
         # Advance turn to next non-bankrupt player
         # Find the index of current player in playerOrder
         order = room["playerOrder"]
