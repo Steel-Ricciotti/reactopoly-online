@@ -42,6 +42,7 @@ def register_socket_handlers(sio):
             room=game_id
         )
 
+        # Emit initial game state
         state = gm._snapshot(gm.rooms[game_id])
         logger.debug(f"[join_game] Emitting state_update for {game_id}: {state}")
         await sio.emit("state_update", state, room=game_id)
@@ -63,4 +64,20 @@ def register_socket_handlers(sio):
             return
 
         logger.debug(f"[roll_dice] Emitting state_update for {game_id}: {new_state}")
+        await sio.emit("state_update", new_state, room=game_id)
+
+    @sio.event
+    async def buy_property(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        if not game_id or not player_id:
+            await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
+            return
+        try:
+            new_state = gm.buy_property(game_id, player_id)
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+
+        logger.debug(f"[buy_property] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)

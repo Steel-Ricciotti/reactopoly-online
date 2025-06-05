@@ -7,42 +7,57 @@ import "@testing-library/jest-dom";
 import GameBoardScreen from "../src/components/GameBoardScreen";
 import { GameContext } from "../src/contexts/GameContext";
 
-test("renders board with two players on different positions and shows correct turn button", () => {
-  const fakeGameState = {
-    game_id: "FAKE1234",
-    playerOrder: ["p1", "p2"],
-    currentTurn: "p2", // it's p2's turn
-    players: {
-      p1: { name: "Alice", position: 5, money: 1500, inJail: false, bankrupt: false },
-      p2: { name: "Bob", position: 10, money: 1500, inJail: false, bankrupt: false },
+const fakeGameState = {
+  game_id: "FAKE1234",
+  playerOrder: ["p1", "p2"],
+  currentTurn: "p2", // Bob’s turn
+  players: {
+    p1: { name: "Alice", position: 1, money: 1500, inJail: false, bankrupt: false },
+    p2: { name: "Bob", position: 3, money: 1500, inJail: false, bankrupt: false },
+  },
+  properties: {
+    1: "p1", // Alice owns space 1
+    3: "p2", // Bob owns space 3
+    // others remain null
+  },
+};
+
+const contextValue = {
+  gameId: "FAKE1234",
+  playerInfo: { name: "Alice", id: "p1" },
+  diceResult: [2, 3],
+  rollDice: jest.fn(),
+  gameState: fakeGameState,
+  themeName: "classic",
+  themes: {
+    classic: {
+      name: "Classic",
+      properties: {
+        1: { displayName: "Med Ave", color: "#8B4513" },
+        3: { displayName: "Balt Ave", color: "#8B4513" },
+      },
     },
-  };
+  },
+};
 
-  // We'll pretend playerInfo is p1 (Alice), so p1 cannot roll
-  const contextValue = {
-    gameId: "FAKE1234",
-    playerInfo: { name: "Alice", id: "p1" },
-    diceResult: [2, 3],
-    rollDice: jest.fn(),
-    gameState: fakeGameState,
-  };
-
+test("renders themed board with owned properties and correct turn button", () => {
   render(
     <GameContext.Provider value={contextValue}>
       <GameBoardScreen />
     </GameContext.Provider>
   );
 
-  // Check that the cell with index 5 has an "A" token
-  const cell5 = screen.getByTestId("space-5");
-  expect(cell5).toHaveTextContent("A");
+  // Space 1 is "Med Ave" (Alice owns it), Alice’s token should appear there
+  const cell1 = screen.getByTestId("space-1");
+  expect(cell1).toHaveTextContent("Med Ave");
+  expect(cell1).toHaveTextContent("A");
 
-  // Check that the cell with index 10 has a "B" token
-  // Check that the cell with index 10 (data-testid="space-10") has a "B" token
-  const cell10 = screen.getByTestId("space-10");
-  expect(cell10).toHaveTextContent("B");
+  // Space 3 is "Balt Ave" (Bob owns it), Bob’s token should appear there
+  const cell3 = screen.getByTestId("space-3");
+  expect(cell3).toHaveTextContent("Balt Ave");
+  expect(cell3).toHaveTextContent("B");
 
-  // Since currentTurn is "p2" (Bob), Alice's (p1) "Roll Dice" button should be disabled
-  const rollBtn = screen.getByRole("button", { name: /Not Your Turn/i });
-  expect(rollBtn).toBeDisabled();
+  // It's Bob's turn, so Alice's "Not Your Turn" button appears
+  const notYourTurnBtn = screen.getByRole("button", { name: /Not Your Turn/i });
+  expect(notYourTurnBtn).toBeDisabled();
 });

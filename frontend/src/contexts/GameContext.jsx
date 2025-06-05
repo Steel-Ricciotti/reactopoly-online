@@ -8,6 +8,7 @@ import {
   subscribeToPlayerJoined,
   subscribeToDiceResult,
 } from "../utils/socket.jsx";
+import { THEMES } from "../utils/themes.js";
 
 export const GameContext = createContext();
 
@@ -18,6 +19,7 @@ export function GameProvider({ children }) {
   const [playerInfo, setPlayerInfo] = useState({ name: "", id: "" });
   const [diceResult, setDiceResult] = useState(null);
   const [gameState, setGameState] = useState(null);
+  const [themeName, setThemeName] = useState("classic"); // default
 
   const setupSocketListeners = (s, localName) => {
     s.on("state_update", (newState) => {
@@ -74,6 +76,9 @@ export function GameProvider({ children }) {
         playerInfo,
         diceResult,
         gameState,
+        themeName,
+        setThemeName,
+        themes:THEMES
       }}
     >
       {children}

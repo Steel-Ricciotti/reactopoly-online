@@ -3,3 +3,17 @@
 @tailwind utilities;
 
 /* You can add global resets or theme variables here later */
+/* Keyframes for spinning the die face */
+@keyframes dice-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Apply a continuous spin */
+.dice-rotating {
+  animation: dice-spin 0.6s linear infinite;
+}
