@@ -9,7 +9,7 @@ import {
   subscribeToDiceResult,
 } from "../utils/socket.jsx";
 import { THEMES } from "../utils/themes.js";
-
+import { PROPERTY_DATA } from "../utils/propertyData.js";
 export const GameContext = createContext();
 
 export function GameProvider({ children }) {
@@ -36,6 +36,15 @@ export function GameProvider({ children }) {
     });
   };
 
+  const buyProperty = (propertyIndex) => {
+    if (!socket || !gameId || !playerInfo.id) return;
+    socket.emit("buy_property", {
+      game_id: gameId,
+      player_id: playerInfo.id,
+      property_index: propertyIndex,
+    });
+  };
+    
   const createGame = (playerName) => {
     const s = initSocket();
     setupSocketListeners(s, playerName);
@@ -71,6 +80,7 @@ export function GameProvider({ children }) {
         setScreen,
         createGame,
         joinGame,
+        buyProperty, 
         rollDice,
         gameId,
         playerInfo,

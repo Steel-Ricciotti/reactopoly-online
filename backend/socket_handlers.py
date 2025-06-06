@@ -70,14 +70,22 @@ def register_socket_handlers(sio):
     async def buy_property(sid, data):
         game_id = data.get("game_id")
         player_id = data.get("player_id")
+        print("Buying property")
+        if not game_id:
+            print("No Game Id")
+        if not player_id:
+            print("No Player Id")            
         if not game_id or not player_id:
+            
             await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
             return
         try:
+            print("Trying to buy")
             new_state = gm.buy_property(game_id, player_id)
         except ValueError as e:
+            print("Buy Gailed")
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
-
+        print("Buying property")
         logger.debug(f"[buy_property] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
