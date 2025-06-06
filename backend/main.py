@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 import socketio
-
+import os
 from socket_handlers import register_socket_handlers
 
 # Create FastAPI app and Socket.IO server
@@ -17,5 +17,7 @@ async def health_check():
     return {"status": "ok"}
 
 if __name__ == "__main__":
-    # Run via: python main.py
-    uvicorn.run(asgi_app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(asgi_app, host="0.0.0.0", port=port)
+
