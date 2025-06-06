@@ -36,15 +36,13 @@ export default function LandingScreen() {
     };
   }, []);
 
-const handleUnmute = () => {
-  if (audioRef.current) {
-    audioRef.current.muted = false;
-    audioRef.current.play().catch(() => {
-      console.log("Failed to play after unmute");
-    });
-    setMuted(false);
-  }
-};
+  const handleUnmute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = false;
+      setMuted(false);
+    }
+  };
+
   return (
     <>
       <audio ref={audioRef} src="/music/chill_piano.mp3" loop playsInline muted autoPlay />
@@ -52,52 +50,7 @@ const handleUnmute = () => {
       <div className="flex flex-col items-center justify-center h-screen bg-gray-100 relative">
         <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm">
           <h1 className="text-3xl font-bold mb-6 text-center">Reactopoly Online</h1>
-           <input
-            type="text"
-            placeholder="Your Name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="border border-gray-300 rounded px-4 py-2 mb-4 w-full"
-          />
-
-          <button
-            className="bg-blue-600 hover:bg-blue-700 transition-colors text-white px-6 py-2 rounded w-full mb-4"
-            onClick={() => createGame(playerName)}
-            disabled={!playerName.trim()}
-          >
-            New Game
-          </button>
-
-          <div className="mb-4 flex gap-2">
-            <input
-              type="text"
-              placeholder="Enter Game ID"
-              value={gameIdInput}
-              onChange={(e) => setGameIdInput(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 w-40"
-            />
-            <button
-              className="bg-red-600 hover:bg-red-700 transition-colors text-white rounded px-3 py-2 w-40"
-              onClick={() => joinGame(gameIdInput, playerName)}
-              disabled={!gameIdInput.trim() || !playerName.trim()}
-            >
-              Join Game
-            </button>
-          </div>
-
-          <button
-            className="bg-green-600 hover:bg-green-700 transition-colors text-white px-4 py-2 rounded w-full mb-6"
-            onClick={() => setScreen("BrowseLobby")}
-          >
-            Browse Lobby
-          </button>
-
-          <button
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold px-4 py-2 rounded w-full mb-6"
-            onClick={() => setScreen("Settings")}
-          >
-            Settings
-          </button>
+          {/* ... your inputs and buttons ... */}
         </div>
 
         {/* Unmute button */}

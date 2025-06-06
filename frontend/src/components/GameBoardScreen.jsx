@@ -1,75 +1,78 @@
-// frontend/src/components/GameBoardScreen.jsx
 import React, { useContext, useState, useEffect, useRef } from "react";
 import { GameContext } from "../contexts/GameContext";
 import DiceDisplay from "./DiceDisplay.jsx";
 import GameInfoPanel from "./GameInfoPanel.jsx";
 import centerLogo from "../assets/center-logo.png";
 import { PROPERTY_DATA, GROUP_MAP } from "../utils/propertyData.js";
+import PlayerPropertyCards from "./PlayerPropertyCards";
 import "../styles.css";
 
 export default function GameBoardScreen() {
-  // 1. Hooks at the top
+  // ──────────── Hooks ────────────
   const {
     diceResult,
     rollDice,
-    buyProperty,
     gameState,
     themeName,
     themes,
-    playerInfo,
+    socket, gameId, playerInfo,
+    // buyProperty, // You don't need this for the modal, only for server-side confirmation now
   } = useContext(GameContext);
-
+  const audioRef = useRef(null);
+  const [muted, setMuted] = useState(true);
+  // 🟢 Use only a single buy-modal state
+  const [pendingBuy, setPendingBuy] = useState(null);
   const [rolling, setRolling] = useState(false);
-  const [pendingBuyIndex, setPendingBuyIndex] = useState(null);
-
-  // Remember previous position to detect “land on unowned property”
+  // 🟠 REMOVED: const [pendingBuyIndex, setPendingBuyIndex] = useState(null);
   const prevPositionRef = useRef(null);
 
-  // 2. Effect: watch for landing on a new, unowned property
+  const handleUnmute = () => {
+  if (audioRef.current) {
+    audioRef.current.muted = false;
+    audioRef.current.play().catch(() => {
+      console.log("Failed to play after unmute");
+    });
+    setMuted(false);
+  }
+};
+
+  // 🟢 Listen for can_buy_property event
   useEffect(() => {
-    if (!gameState || !playerInfo.id) return;
+    if (!socket) return;
 
-    const myId = playerInfo.id;
-    const prevPos = prevPositionRef.current;
-    const myPos = gameState.players[myId]?.position;
-
-    prevPositionRef.current = myPos;
-
-    if (
-      gameState.currentTurn === myId &&
-      prevPos !== null &&
-      prevPos !== myPos
-    ) {
-      const propInfo = PROPERTY_DATA[myPos];
-      const ownership = gameState.properties || {};
-      if (propInfo && !ownership[myPos]) {
-        setPendingBuyIndex(myPos);
-      }
+    function onCanBuyProperty(data) {
+      console.log("Can Buy")
+      setPendingBuy({
+        index: data.property_index,
+        name: data.property_name,
+        cost: data.property_cost,
+      });
     }
-  }, [gameState, playerInfo.id]);
 
-  // 3. Handlers for confirm/pass buy
+    socket.on("can_buy_property", onCanBuyProperty);
+    return () => socket.off("can_buy_property", onCanBuyProperty);
+  }, [socket]);
+
+  // 🟢 Call backend when user confirms
   const confirmBuy = () => {
-    if (pendingBuyIndex != null) {
-      console.log("Buying property")
-      buyProperty(pendingBuyIndex);
-      setPendingBuyIndex(null);
-    }
-  };
-  const passBuy = () => {
-    setPendingBuyIndex(null);
+    if (!pendingBuy) return;
+    socket.emit("buy_property", {
+      game_id: gameId,
+      player_id: playerInfo.id,
+    });
+    setPendingBuy(null);
   };
 
-  // 4. Early-return if gameState not ready (hooks are already called)
+  const passBuy = () => setPendingBuy(null);
+
+
   if (!gameState) {
     return (
-      <p className="text-center mt-8 text-gray-700">
-        Waiting for game state...
-      </p>
+      <p className="text-center mt-8 text-gray-700">Waiting for game state...</p>
     );
   }
 
-  // 5. Extract data from gameState
+  // ───────── Extract state ─────────
   const {
     players,
     playerOrder,
@@ -81,13 +84,13 @@ export default function GameBoardScreen() {
   const myId = playerInfo.id;
   const isMyTurn = currentTurn === myId;
 
-  // 6. Helpers for board mapping and tokens
   const indexToCoord = (idx) => {
     if (idx >= 0 && idx <= 10) return [0, 10 - idx];
     if (idx >= 11 && idx <= 20) return [idx - 10, 0];
     if (idx >= 21 && idx <= 30) return [10, idx - 20];
     return [40 - idx, 10];
   };
+
   const tokensAt = (pos) =>
     playerOrder
       .filter((pid) => players[pid].position === pos)
@@ -99,15 +102,13 @@ export default function GameBoardScreen() {
             left: "50%",
             top: "50%",
             transform: "translate(-50%, -50%)",
-            backgroundColor:
-              pid === playerInfo.id ? "#4caf50" : "#e91e63",
+            backgroundColor: pid === playerInfo.id ? "#4caf50" : "#e91e63",
           }}
         >
           {players[pid].name[0].toUpperCase()}
         </span>
       ));
 
-  // 7. Roll dice button handler
   const handleRoll = () => {
     if (rolling || !isMyTurn) return;
     setRolling(true);
@@ -117,79 +118,70 @@ export default function GameBoardScreen() {
     }, 600);
   };
 
-  // 8. Render tiny stacked cards inside owned squares (unchanged)
-  const renderPropertyCards = (idx) => {
-    const propInfo = PROPERTY_DATA[idx];
-    if (!propInfo) return null;
-
-    const group = propInfo.group;
-    const allInGroup = GROUP_MAP[group] || [];
-    const ownedCount = allInGroup.filter(
-      (i) => ownership[i] === playerInfo.id
-    ).length;
-    console.log(ownedCount);
-    if (ownedCount === 0) return null;
-    if (ownership[idx] !== playerInfo.id) return null;
-
-    return Array.from({ length: ownedCount }, (_, stackIndex) => (
-      <div
-        key={stackIndex}
-        className="absolute top-1 left-1 border-2 border-gray-800 bg-white"
-        style={{
-          width: "20px",
-          height: "14px",
-          transform: `translate(${stackIndex * 2}px, ${stackIndex * 2}px)`,
-          zIndex: 10 + stackIndex,
-        }}
-      />
-    ));
-  };
-
-  // 9. Build a map: playerId → array of property indices they own
-  const ownedByPlayer = {};
-  for (const [idxStr, ownerId] of Object.entries(ownership)) {
-    const idx = parseInt(idxStr, 10);
-    if (!ownedByPlayer[ownerId]) ownedByPlayer[ownerId] = [];
-    ownedByPlayer[ownerId].push(idx);
-  }
-
-  // 10. Render “cards in front of players”:
-  //   - bottom (playerOrder[0]): flex‐row under board
-  //   - left (playerOrder[1]): flex‐col to the left of board
-  //   - top (playerOrder[2]): flex‐row above board
-  //   - right (playerOrder[3]): flex‐col to the right of board
+  // ─────────── Seat‐Card Rendering ───────────
   const renderPlayerCards = () => {
+    const ownedByPlayer = {};
+    for (const [idxStr, ownerId] of Object.entries(ownership)) {
+      const idx = parseInt(idxStr, 10);
+      if (!ownedByPlayer[ownerId]) ownedByPlayer[ownerId] = [];
+      ownedByPlayer[ownerId].push(idx);
+    }
+
     const seats = [
-      { anchor: "bottom", offsetStyle: { bottom: "-800px", left: "50%", transform: "translateX(-50%)", flexDirection: "row" } },
-      { anchor: "left", offsetStyle: { top: "50%", left: "-80px", transform: "translateY(-50%)", flexDirection: "column" } },
-      { anchor: "top", offsetStyle: { top: "-80px", left: "50%", transform: "translateX(-50%)", flexDirection: "row" } },
-      { anchor: "right", offsetStyle: { top: "50%", right: "-80px", transform: "translateY(-50%)", flexDirection: "column" } },
+      {
+        offsetStyle: {
+          bottom: "-60px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          flexDirection: "row",
+        },
+      },
+      {
+        offsetStyle: {
+          top: "50%",
+          left: "-60px",
+          transform: "translateY(-50%)",
+          flexDirection: "column",
+        },
+      },
+      {
+        offsetStyle: {
+          top: "-60px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          flexDirection: "row",
+        },
+      },
+      {
+        offsetStyle: {
+          top: "50%",
+          right: "-60px",
+          transform: "translateY(-50%)",
+          flexDirection: "column",
+        },
+      },
     ];
-    console.log("Render Cards.")
+
     return playerOrder.slice(0, 4).map((pid, seatIndex) => {
       const cardIndices = ownedByPlayer[pid] || [];
       if (cardIndices.length === 0) return null;
 
-      const style = {
-        position: "absolute",
-        display: "flex",
-        gap: "8px",
-        ...seats[seatIndex].offsetStyle,
-      };
-
       return (
-        <div key={pid} style={style}>
+        <div
+          key={pid}
+          className="absolute flex gap-1"
+          style={seats[seatIndex].offsetStyle}
+        >
           {cardIndices.map((idx) => {
-            const { displayName } = PROPERTY_DATA[idx];
+            const { displayName } = theme[idx];
+            const shortName = displayName.split(" ").slice(0, 2).join(" ");
             return (
               <div
                 key={idx}
-                // className="border bg-white p-1 text-[10px] text-center shadow"
-                // style={{ width: "60px", height: "40px" }}
-                
+                className="w-[50px] h-[30px] bg-white border border-gray-700 rounded shadow-sm flex items-center justify-center text-[8px] text-gray-800"
+                title={displayName}
               >
-                
-                {displayName.split(" ").slice(0, 2).join(" ")}
+                {shortName}
               </div>
             );
           })}
@@ -198,27 +190,44 @@ export default function GameBoardScreen() {
     });
   };
 
+  // ───────── Render ─────────
   return (
+        <>
+      {/* Audio element for background music */}
+      <audio
+        ref={audioRef}
+        src="/music/chill_piano.mp3"
+        loop
+        playsInline
+        muted
+        autoPlay
+      />
+
     <div className="relative mx-auto" style={{ width: "600px", height: "600px" }}>
-      {/* Floating Info Panel */}
+      {/* Left‐side info panel */}
       <div className="absolute left-[-220px] top-0">
         <GameInfoPanel />
       </div>
 
-      {/* Board Container */}
+      {/* Board container */}
       <div className="relative flex items-center justify-center">
-        {/* 11×11 Grid (600×600px board) */}
         <div className="board">
+            
           {Array.from({ length: 40 }, (_, idx) => {
             const [row, col] = indexToCoord(idx);
+            const textColor = theme['titleTextColor']
+            const themeInfo = theme['properties'][idx];
+            const themeColor = themeInfo ? themeInfo.color : "#ffffff";
             const propInfo = PROPERTY_DATA[idx];
             const ownerId = ownership[idx];
             const baseColor = propInfo ? propInfo.color : "#ffffff";
+            console.log(themeInfo)
             const overlay = ownerId ? (
               <div className="absolute inset-0 bg-black opacity-20 rounded" />
             ) : null;
 
             return (
+              
               <div
                 key={idx}
                 data-testid={`space-${idx}`}
@@ -236,18 +245,20 @@ export default function GameBoardScreen() {
                 style={{
                   gridRow: row + 1,
                   gridColumn: col + 1,
-                  backgroundColor: baseColor,
+                  textColor:textColor,
+                  backgroundColor: themeColor,
                   width: "54px",
                   height: "54px",
                 }}
-                title={propInfo ? propInfo.displayName : `Space ${idx}`}
+                title={themeInfo ? themeInfo.displayName : `Space ${idx}`}
               >
-                <div className="absolute top-0 left-0 text-[6px] p-1 text-gray-800">
-                  {propInfo ? propInfo.displayName : idx}
+                <div className="absolute top-0 left-0 text-[6px] p-1"
+                   style={{ textColor: textColor }}
+                   >
+                  {themeInfo ? themeInfo.displayName : idx}
                 </div>
                 {tokensAt(idx)}
                 {overlay}
-                {renderPropertyCards(idx)}
               </div>
             );
           })}
@@ -268,32 +279,33 @@ export default function GameBoardScreen() {
                 onClick={handleRoll}
                 disabled={!isMyTurn || rolling}
               >
-                {rolling
-                  ? "Rolling…"
-                  : isMyTurn
-                  ? "Roll Dice"
-                  : "Not Your Turn"}
+                {rolling ? "Rolling…" : isMyTurn ? "Roll Dice" : "Not Your Turn"}
               </button>
             </div>
           </div>
         </div>
 
-        {/* 10. Player‐seat property cards */}
-        {renderPlayerCards()}
+        {/* Seat‐card rendering, closer to board */}
+        <PlayerPropertyCards
+          ownership={ownership}
+          playerOrder={playerOrder}
+          playerInfo={playerInfo}
+          PROPERTY_DATA={PROPERTY_DATA}
+        />
       </div>
 
-      {/* Buy-Property Modal */}
-      {pendingBuyIndex != null && (
+      {/* 🟢 Buy‐property modal, backend-driven only */}
+      {pendingBuy && (
         <div className="modal-overlay">
           <div className="modal">
             <p className="mb-4">
               Buy{" "}
               <span className="font-semibold">
-                {PROPERTY_DATA[pendingBuyIndex].displayName}
+                {pendingBuy.name}
               </span>{" "}
               for $
               <span className="font-semibold">
-                {PROPERTY_DATA[pendingBuyIndex].cost}
+                {pendingBuy.cost}
               </span>
               ?
             </p>
@@ -309,5 +321,16 @@ export default function GameBoardScreen() {
         </div>
       )}
     </div>
+          {/* Unmute button */}
+      {muted && (
+        <button
+          onClick={handleUnmute}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow z-50"
+          aria-label="Unmute music"
+        >
+          🔈 Unmute Music
+        </button>
+      )}
+    </>
   );
 }
