@@ -1,8 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
-
-name: Build and deploy Python app to Azure Web App - reactopoly-online
+name: Build and deploy Python + React app to Azure Web App - reactopoly-online
 
 on:
   push:
@@ -14,36 +10,56 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python version
+      # Setup Node.js for frontend build
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'   # or your preferred Node version
+
+      # Build React frontend
+      - name: Build React frontend
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run build   # generates 'dist' or 'build' folder (depending on config)
+
+      # Setup Python for backend
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Create and start virtual environment
+      # Install backend dependencies
+      - name: Install Python dependencies
+        working-directory: ./backend
         run: |
           python -m venv venv
           source venv/bin/activate
-      
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
+          pip install -r requirements.txt
 
+      # Copy frontend build output into backend static folder (adjust if needed)
+      - name: Copy React build into backend static folder
+        run: |
+          # Example: copying 'dist' folder from frontend to backend/public or backend/static
+          mkdir -p ./backend/public
+          cp -r ./frontend/dist/* ./backend/public/
+
+      # Zip everything in backend folder for deployment
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: |
+          cd backend
+          zip -r ../release.zip ./*
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
-          name: python-app
-          path: |
-            release.zip
-            !venv/
+          name: python-react-app
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -52,30 +68,28 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: python-app
+          name: python-react-app
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0225CB475AF341E0B327CD699AEA37A2 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6FAD66ED2103412F9517934315737A1C }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0EC9A8B40A4E40778F29650CDADF3F03 }}
+          client-id: ${{ secrets.__clientidsecretname__ }}
+          tenant-id: ${{ secrets.__tenantidsecretname__ }}
+          subscription-id: ${{ secrets.__subscriptionidsecretname__ }}
 
-      - name: 'Deploy to Azure Web App'
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
           app-name: 'reactopoly-online'
           slot-name: 'Production'
-          
