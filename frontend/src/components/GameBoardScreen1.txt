@@ -1,0 +1,269 @@
+// frontend/src/components/GameBoardScreen.jsx
+import React, { useContext, useState, useEffect, useRef } from "react";
+import { GameContext } from "../contexts/GameContext";
+import DiceDisplay from "./DiceDisplay.jsx";
+import GameInfoPanel from "./GameInfoPanel.jsx";
+import centerLogo from "../assets/center-logo.png";
+import { PROPERTY_DATA, GROUP_MAP } from "../utils/propertyData.js";
+import "../styles.css";
+
+export default function GameBoardScreen() {
+  const {
+    diceResult,
+    rollDice,
+    buyProperty,
+    gameState,
+    themeName,
+    themes,
+    playerInfo,
+  } = useContext(GameContext);
+
+  const [rolling, setRolling] = useState(false);
+
+  // pendingBuyIndex === index of the property for which we’re showing the modal, or null
+  const [pendingBuyIndex, setPendingBuyIndex] = useState(null);
+
+  // Keep track of the previous position to detect when a roll just happened
+  const prevPositionRef = useRef(null);
+
+  if (!gameState) {
+    return (
+      <p className="text-center mt-8 text-gray-700">
+        Waiting for game state...
+      </p>
+    );
+  }
+
+  const { players, playerOrder, currentTurn, properties: ownership } = gameState;
+  const theme = themes[themeName];
+
+  // Convert 0–39 into (row, col) on the 11×11 grid
+  const indexToCoord = (idx) => {
+    if (idx >= 0 && idx <= 10) return [0, 10 - idx];
+    if (idx >= 11 && idx <= 20) return [idx - 10, 0];
+    if (idx >= 21 && idx <= 30) return [10, idx - 20];
+    return [40 - idx, 10];
+  };
+
+  // Tokens for players on each square
+  const tokensAt = (pos) =>
+    playerOrder
+      .filter((pid) => players[pid].position === pos)
+      .map((pid) => (
+        <span
+          key={pid}
+          className="piece"
+          style={{
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor:
+              pid === playerInfo.id ? "#4caf50" : "#e91e63",
+          }}
+        >
+          {players[pid].name[0].toUpperCase()}
+        </span>
+      ));
+
+  // Is it current user's turn?
+  const isMyTurn = currentTurn === playerInfo.id;
+
+  // Handle Roll Dice click
+  const handleRoll = () => {
+    if (rolling || !isMyTurn) return;
+    setRolling(true);
+    setTimeout(() => {
+      rollDice();
+      setRolling(false);
+    }, 600);
+  };
+
+  // Detect when the current player just moved onto a new square.
+  useEffect(() => {
+    const myId = playerInfo.id;
+    if (!myId) return;
+
+    const myPos = players[myId]?.position;
+    const prevPos = prevPositionRef.current;
+    prevPositionRef.current = myPos;
+
+    // Only trigger if it’s now your turn *and* you have moved into a new square
+    if (
+      currentTurn === myId &&       // it’s your turn
+      prevPos != null &&            // not first render
+      prevPos !== myPos             // position changed
+    ) {
+      // Check if that square is an unowned property
+      const propInfo = PROPERTY_DATA[myPos];
+      if (propInfo && !ownership[myPos]) {
+        setPendingBuyIndex(myPos);
+      }
+    }
+  }, [gameState, playerInfo.id, ownership, players, currentTurn]);
+
+  // When the player confirms “Buy,” call buyProperty() and close modal.
+  const confirmBuy = () => {
+    if (pendingBuyIndex != null) {
+      buyProperty(pendingBuyIndex);
+      setPendingBuyIndex(null);
+    }
+  };
+
+  // If the player “Passes,” just close the modal
+  const passBuy = () => {
+    setPendingBuyIndex(null);
+  };
+
+  // Render stacked “property cards” on each square for group‐stacking
+  const renderPropertyCards = (idx) => {
+    const propInfo = PROPERTY_DATA[idx];
+    if (!propInfo) return null;
+
+    const group = propInfo.group;
+    const allInGroup = GROUP_MAP[group] || [];
+    // Count how many properties in this group you personally own
+    const ownedByMeIndices = allInGroup.filter(
+      (i) => ownership[i] === playerInfo.id
+    );
+    const countInGroup = ownedByMeIndices.length;
+    if (countInGroup === 0) return null;
+
+    // We will draw countInGroup stacked rectangles on THIS square (idx),
+    // but only if idx is owned by me. Otherwise, don’t show them here.
+    if (ownership[idx] !== playerInfo.id) return null;
+
+    // Draw up to countInGroup “card” divs, each offset by 2px
+    return Array.from({ length: countInGroup }, (_, stackIndex) => (
+      <div
+        key={stackIndex}
+        className="absolute top-1 left-1 border-2 border-gray-800 bg-white"
+        style={{
+          width: "20px",
+          height: "14px",
+          transform: `translate(${stackIndex * 2}px, ${stackIndex * 2}px)`,
+          zIndex: 10 + stackIndex,
+        }}
+      />
+    ));
+  };
+
+  return (
+    <div className="relative mx-auto">
+      {/* Floating Game Info panel */}
+      <div className="absolute left-[-220px] top-0">
+        <GameInfoPanel />
+      </div>
+
+      {/* Board container */}
+      <div className="relative flex items-center justify-center">
+        {/* 11×11 Grid (600×600px board) */}
+        <div className="board">
+          {Array.from({ length: 40 }, (_, idx) => {
+            const [row, col] = indexToCoord(idx);
+            const propInfo = PROPERTY_DATA[idx];
+            const ownerId = ownership[idx];
+            const baseColor = propInfo
+              ? themes[themeName].properties[idx]?.color || "#ffffff"
+              : "#ffffff";
+            const overlay = ownerId ? (
+              <div className="absolute inset-0 bg-black opacity-20 rounded" />
+            ) : null;
+
+            return (
+              <div
+                key={idx}
+                data-testid={`space-${idx}`}
+                className={`property ${
+                  idx <= 10
+                    ? "top-row"
+                    : idx >= 30 && idx <= 39
+                    ? "right-column"
+                    : idx >= 20 && idx <= 30
+                    ? "bottom-row"
+                    : idx >= 10 && idx <= 20
+                    ? "left-column"
+                    : ""
+                }`}
+                style={{
+                  gridRow: row + 1,
+                  gridColumn: col + 1,
+                  backgroundColor: baseColor,
+                  width: "54px",
+                  height: "54px",
+                }}
+                title={propInfo ? propInfo.displayName : `Space ${idx}`}
+              >
+                <div className="absolute top-0 left-0 text-[6px] p-1 text-gray-800">
+                  {propInfo ? propInfo.displayName : idx}
+                </div>
+                {tokensAt(idx)}
+                {overlay}
+
+                {/* Render stacked “cards” if I own this square and group‐stack >1 */}
+                {renderPropertyCards(idx)}
+              </div>
+            );
+          })}
+
+          {/* Center area (rows 2–10, cols 2–10) */}
+          <div className="center">
+            <img
+              src={centerLogo}
+              alt="Center Logo"
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
+            <div className="dice-container">
+              <div className="dice-row">
+                <DiceDisplay diceResult={diceResult} rolling={rolling} />
+              </div>
+              <button
+                className="roll-button"
+                onClick={handleRoll}
+                disabled={!isMyTurn || rolling}
+              >
+                {rolling
+                  ? "Rolling…"
+                  : isMyTurn
+                  ? "Roll Dice"
+                  : "Not Your Turn"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal for “Buy Property?” */}
+      {pendingBuyIndex != null && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p className="mb-4">
+              Buy{" "}
+              <span className="font-semibold">
+                {PROPERTY_DATA[pendingBuyIndex].displayName}
+              </span>{" "}
+              for $
+              <span className="font-semibold">
+                {PROPERTY_DATA[pendingBuyIndex].cost}
+              </span>
+              ?
+            </p>
+            <div className="flex justify-around">
+              <button
+                className="modal-button"
+                onClick={confirmBuy}
+              >
+                Buy
+              </button>
+              <button
+                className="modal-button"
+                onClick={passBuy}
+              >
+                Pass
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

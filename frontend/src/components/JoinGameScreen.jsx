@@ -5,6 +5,21 @@ export default function JoinGameScreen() {
   const { joinGame, setScreen } = useContext(GameContext);
   const [playerName, setPlayerName] = useState("");
   const [gameIdInput, setGameIdInput] = useState("");
+  useEffect(() => {
+    // Save original styles
+    const originalBgImage = document.body.style.backgroundImage;
+    const originalBgColor = document.body.style.backgroundColor;
+
+    // Override for landing screen
+    document.body.style.backgroundImage = "none";
+    document.body.style.backgroundColor = "#f0f0f0"; // or white
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.backgroundImage = originalBgImage;
+      document.body.style.backgroundColor = originalBgColor;
+    };
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-50">

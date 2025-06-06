@@ -1,5 +1,7 @@
 # backend/socket_handlers.py
 import logging
+from fastapi import HTTPException
+
 from game_manager import GameManager
 
 logger = logging.getLogger("socketio")
@@ -13,25 +15,9 @@ def register_socket_handlers(sio):
         logger.debug(f"[connect] Client connected: {sid}")
 
     @sio.event
-    async def buy_property(sid, data):
-        game_id = data.get("game_id")
-        player_id = data.get("player_id")
-        # ...
-        try:
-            print("Trying to buy")
-            new_state = gm.buy_property(game_id, player_id)
-        except ValueError as e:
-            print("Buy Failed")
-            await sio.emit("error", {"message": str(e)}, to=sid)
-            return
-        print("Buying property")
-        logger.debug(f"[buy_property] Emitting state_update for {game_id}: {new_state}")
-        await sio.emit("state_update", new_state, room=game_id)
-
-
-    @sio.event
     async def disconnect(sid):
         logger.debug(f"[disconnect] Client disconnected: {sid}")
+        # (Later: handle removing players / marking bankrupt)
 
     @sio.event
     async def create_game(sid, data):
@@ -52,16 +38,18 @@ def register_socket_handlers(sio):
             await sio.emit("error", {"message": "Invalid game_id"}, to=sid)
             return
 
+        # Put this socket in the room
         await sio.enter_room(sid, game_id)
+
+        # Broadcast to everyone: a new player joined
         await sio.emit(
             "player_joined",
             {"player_id": player_id, "player_name": player_name},
             room=game_id
         )
 
-        # Emit initial game state
+        # Additionally, send the full game state so clients know initial turn/order
         state = gm._snapshot(gm.rooms[game_id])
-        logger.debug(f"[join_game] Emitting state_update for {game_id}: {state}")
         await sio.emit("state_update", state, room=game_id)
 
     @sio.event
@@ -72,25 +60,15 @@ def register_socket_handlers(sio):
             await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
             return
         try:
+            # Perform roll & move (may raise PermissionError or ValueError)
             new_state = gm.roll_and_move(game_id, player_id)
         except PermissionError as e:
+            # e.g. “not your turn” or “in jail”
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
         except ValueError as e:
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
 
-        logger.debug(f"[roll_dice] Emitting state_update for {game_id}: {new_state}")
+        # Broadcast the updated game state to everyone
         await sio.emit("state_update", new_state, room=game_id)
-
-        # Find the socket for the player who just rolled (for now, we use sid, which should be player's sid)
-        prop_info = gm.land_on_property(game_id, player_id)
-        print("Landed on Property")
-        print(prop_info.get("type"))
-        if prop_info.get("type") == "unowned":
-            await sio.emit("can_buy_property", {
-                "property_index": prop_info["index"],
-                "property_name": prop_info["name"],
-                "property_cost": prop_info["cost"],
-            }, to=sid)
-            print("Emitted")

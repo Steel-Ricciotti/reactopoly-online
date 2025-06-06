@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect } from "react";
+// frontend/src/contexts/GameContext.jsx
+import React, { createContext, useState } from "react";
 import {
   initSocket,
   createGame as emitCreateGame,
@@ -6,58 +7,71 @@ import {
   subscribeToGameCreated,
   subscribeToPlayerJoined,
   subscribeToDiceResult,
-  // We'll add more subscribes in Iter 2
 } from "../utils/socket.jsx";
-
+import { THEMES } from "../utils/themes.js";
+import { MUSIC } from "../utils/music.js";
+import { PROPERTY_DATA } from "../utils/propertyData.js";
 export const GameContext = createContext();
 
 export function GameProvider({ children }) {
   const [socket, setSocket] = useState(null);
-  const [screen, setScreen] = useState("Landing"); // "Landing", "Join", "Settings", "GameBoard"
+  const [screen, setScreen] = useState("Landing");
   const [gameId, setGameId] = useState("");
   const [playerInfo, setPlayerInfo] = useState({ name: "", id: "" });
-  const [players, setPlayers] = useState([]); // array of { player_id, player_name }
   const [diceResult, setDiceResult] = useState(null);
+  const [gameState, setGameState] = useState(null);
+  const [themeName, setThemeName] = useState("classic"); // default
+  const [musicName, setMusic] = useState("default"); // default
 
-  // Called by LandingScreen to create a game
+  const setupSocketListeners = (s, localName) => {
+    s.on("state_update", (newState) => {
+      setGameState(newState);
+    });
+    subscribeToDiceResult(s, (data) => {
+      setDiceResult(data.dice);
+    });
+    subscribeToPlayerJoined(s, ({ player_id, player_name }) => {
+      if (player_name === localName) {
+        setPlayerInfo({ name: player_name, id: player_id });
+        setScreen("GameBoard");
+      }
+    });
+  };
+
+  const buyProperty = (propertyIndex) => {
+    if (!socket || !gameId || !playerInfo.id) return;
+    socket.emit("buy_property", {
+      game_id: gameId,
+      player_id: playerInfo.id,
+      property_index: propertyIndex,
+    });
+  };
+    
   const createGame = (playerName) => {
     const s = initSocket();
+    setupSocketListeners(s, playerName);
     setSocket(s);
-    // Once the backend emits "game_created", we get the new gameId and immediately join
+
     subscribeToGameCreated(s, ({ game_id }) => {
       setGameId(game_id);
       emitJoinGame(s, game_id, playerName);
-      setPlayerInfo((prev) => ({ ...prev, name: playerName }));
-      setScreen("GameBoard");
     });
+
     emitCreateGame(s);
   };
 
-  // Called by JoinGameScreen to join an existing game
   const joinGame = (enteredGameId, playerName) => {
     const s = initSocket();
+    setupSocketListeners(s, playerName);
     setSocket(s);
-    subscribeToPlayerJoined(s, ({ player_id, player_name }) => {
-      // If this event is for us, store our player_id
-      // Note: for now, everyone in the room gets this event. We’ll refine filtering in Iter 2.
-      setPlayerInfo({ name: player_name, id: player_id });
-      setScreen("GameBoard");
-    });
+
     emitJoinGame(s, enteredGameId, playerName);
     setGameId(enteredGameId);
-    setPlayerInfo((prev) => ({ ...prev, name: playerName }));
   };
-
-  useEffect(() => {
-    if (!socket) return;
-    subscribeToDiceResult(socket, (data) => {
-      setDiceResult(data.dice);
-    });
-    // In Iter 2, subscribe to more events (property_bought, turn_changed, etc.)
-  }, [socket]);
 
   const rollDice = () => {
     if (!socket || !gameId || !playerInfo.id) return;
+    if (gameState && gameState.currentTurn !== playerInfo.id) return;
     socket.emit("roll_dice", { game_id: gameId, player_id: playerInfo.id });
   };
 
@@ -68,11 +82,18 @@ export function GameProvider({ children }) {
         setScreen,
         createGame,
         joinGame,
+        buyProperty, 
         rollDice,
         gameId,
         playerInfo,
-        players,
         diceResult,
+        gameState,
+        themeName,
+        setThemeName,
+        socket,
+        setMusic,
+        themes:THEMES,
+        music:MUSIC
       }}
     >
       {children}
