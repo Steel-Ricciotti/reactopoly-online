@@ -1,9 +1,12 @@
 import { io } from "socket.io-client";
 
 export function initSocket() {
-  const socket = io("http://localhost:8000"); // Ensure your backend is on port 8000
+  const socket = io("http://localhost:8000");
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
+  });
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err);
   });
   socket.on("disconnect", () => {
     console.log("Socket disconnected");
@@ -11,12 +14,12 @@ export function initSocket() {
   return socket;
 }
 
-export function createGame(socket) {
-  socket.emit("create_game", {});
+export function createGame(socket, playerName) {
+  socket.emit("create_game", { player_name: playerName });
 }
 
-export function joinGame(socket, gameId, playerName) {
-  socket.emit("join_game", { game_id: gameId, player_name: playerName });
+export function joinGame(socket, gameId, playerName, piece = null) {
+  socket.emit("join_game", { game_id: gameId, player_name: playerName, piece });
 }
 
 export function subscribeToGameCreated(socket, callback) {
@@ -39,5 +42,3 @@ export function subscribeToDiceResult(socket, callback) {
     callback(data);
   });
 }
-
-// In Iter 2, we’ll add: subscribeToPropertyBought, subscribeToTurnChanged, etc.

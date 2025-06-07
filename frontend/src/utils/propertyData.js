@@ -9,8 +9,8 @@ export const PROPERTY_DATA = {
   6: { displayName: "Oriental Avenue", cost: 100, group: "light-blue" },
   8: { displayName: "Vermont Avenue", cost: 100, group: "light-blue" },
   9: { displayName: "Connecticut Avenue", cost: 120, group: "light-blue" },
-
   11: { displayName: "St. Charles Place", cost: 140, group: "pink" },
+  12: { displayName: "Electric Company", cost: 140, group: "utility" },
   13: { displayName: "States Avenue", cost: 140, group: "pink" },
   14: { displayName: "Virginia Avenue", cost: 160, group: "pink" },
   15: { displayName: "Railroad #2", cost: 200, group: "rail" },
@@ -23,8 +23,8 @@ export const PROPERTY_DATA = {
   25: { displayName: "Railroad #3", cost: 200, group: "rail" },
   26: { displayName: "Atlantic Avenue", cost: 260, group: "yellow" },
   27: { displayName: "Ventnor Avenue", cost: 260, group: "yellow" },
+  28: { displayName: "Water Works", cost: 150, group: "utility" },
   29: { displayName: "Marvin Gardens", cost: 280, group: "yellow" },
-
   31: { displayName: "Pacific Avenue", cost: 300, group: "green" },
   32: { displayName: "North Carolina Avenue", cost: 300, group: "green" },
   34: { displayName: "Pennsylvania Avenue", cost: 320, group: "green" },

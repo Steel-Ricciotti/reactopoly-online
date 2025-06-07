@@ -9,6 +9,16 @@ import {
 } from "../utils/socket.jsx";
 import { THEMES } from "../utils/themes.js";
 import { MUSIC } from "../utils/music.js";
+
+export const PIECES = [
+  { id: "car", label: "🚗" },
+  { id: "hat", label: "🎩" },
+  { id: "dog", label: "🐕" },
+  { id: "ship", label: "🚢" },
+  { id: "wheelbarrow", label: "🛒" },
+];
+
+
 export const GameContext = createContext();
 
 export function GameProvider({ children }) {
@@ -58,13 +68,13 @@ export function GameProvider({ children }) {
 
     subscribeToGameCreated(s, ({ game_id }) => {
       setGameId(game_id);
-      emitJoinGame(s, game_id, playerName);
+      // emitJoinGame(s, game_id, playerName);
     });
 
     emitCreateGame(s);
     setSelectedPiece(null);
     setPlayerInfo({ id: "", name: playerName });
-    // setScreen("PieceSelection");
+    setScreen("PieceSelection");
   };
   // Initialize socket on first mount and keep alive for all screens
   useEffect(() => {
@@ -81,7 +91,7 @@ export function GameProvider({ children }) {
     setupSocketListeners(s, playerName);
     setSocket(s);
 
-    emitJoinGame(s, enteredGameId, playerName);
+    // emitJoinGame(s, enteredGameId, playerName);
     setGameId(enteredGameId);
     setSelectedPiece(null);
     setPlayerInfo({ id: "", name: playerName });
@@ -93,7 +103,7 @@ export function GameProvider({ children }) {
     if (!gameId || !playerInfo.name || !socket) return;
     setSelectedPiece(pieceId);
     emitJoinGame(socket, gameId, playerInfo.name, pieceId);
-    setScreen("GameBoard");
+    setScreen("Lobby");
   };
 
   const buyProperty = (propertyIndex) => {

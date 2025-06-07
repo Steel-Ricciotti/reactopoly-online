@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useRef } from "react";
-import { GameContext } from "../contexts/GameContext";
+import { GameContext, PIECES } from "../contexts/GameContext";
 import DiceDisplay from "./DiceDisplay.jsx";
 import GameInfoPanel from "./GameInfoPanel.jsx";
 import centerLogo from "../assets/center-logo.png";
@@ -41,7 +41,6 @@ export default function GameBoardScreen() {
     if (!socket) return;
 
     function onCanBuyProperty(data) {
-      console.log("Can Buy")
       setPendingBuy({
         index: data.property_index,
         name: data.property_name,
@@ -93,24 +92,25 @@ export default function GameBoardScreen() {
     return [40 - idx, 10];
   };
 
-  const tokensAt = (pos) =>
-    playerOrder
-      .filter((pid) => players[pid].position === pos)
-      .map((pid) => (
+const tokensAt = (pos) =>
+  playerOrder
+    .filter((pid) => players[pid].position === pos)
+    .map((pid) => {
+      const pieceId = players[pid].piece;
+      const pieceObj = PIECES.find(p => p.id === pieceId);
+      const label = pieceObj ? pieceObj.label : "$";
+      return (
         <span
           key={pid}
-          className="piece"
           style={{
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: pid === playerInfo.id ? "#4caf50" : "#e91e63",
+            fontSize: '2rem',
           }}
           title={players[pid].name}
         >
-          {players[pid].piece || "🚗"}
+          {label}
         </span>
-      ));
+      );
+    });
 
   const handleRoll = () => {
     if (rolling || !isMyTurn) return;
@@ -217,7 +217,6 @@ export default function GameBoardScreen() {
         <div className="board">
             
           {Array.from({ length: 40 }, (_, idx) => {
-            console.log(themes[themeName])
             const [row, col] = indexToCoord(idx);
             const textColor = themes['titleTextColor'];
             const themeInfo = themes[themeName]['properties'][idx];//  ? themes[themeName]['properties'][1] :  { displayName: "Kentucky Ave",      color: "#C62828" };
@@ -226,7 +225,6 @@ export default function GameBoardScreen() {
             const propInfo = PROPERTY_DATA[idx];
             const ownerId = ownership[idx];
             const baseColor = propInfo ? propInfo.color : "#ffffff";
-            console.log(themeInfo)
             const overlay = ownerId ? (
               <div className="absolute inset-0 bg-black opacity-20 rounded" />
             ) : null;
