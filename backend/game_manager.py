@@ -9,26 +9,32 @@ import uuid
 from typing import Optional
 
 PROPERTY_DATA = {
-    1: ("Mediterranean Avenue", 60, 6),
-    5: ("Reading Railroad", 200, 50),
-    8: ("Vermont Avenue", 120, 14),
-    9: ("Connecticut Avenue", 140, 14),
+    1:  ("Mediterranean Avenue", 60, 6),
+    3:  ("Baltic Avenue", 60, 6),
+    5:  ("Reading Railroad", 200, 50),
+    6:  ("Oriental Avenue", 100, 6),           # fixed rent (was 50, probably typo)
+    8:  ("Vermont Avenue", 100, 14),
+
+    9:  ("Connecticut Avenue", 120, 14),
     12: ("Electric Company", 75, 15),
     13: ("States Avenue", 140, 14),
-    15: ("Pennsylvania Railroad", 200, 25),
-    16: ("St. James Place", 160, 20),
-    18: ("Tennessee Avenue", 160, 22),
-    19: ("New York Avenue", 180, 26),
-    21: ("Kentucky Avenue", 200, 26),
+    15: ("Pennsylvania Railroad", 200, 50),   # matching Reading Railroad rent
+    16: ("St. James Place", 180, 20),
+    18: ("Tennessee Avenue", 180, 22),
+    19: ("New York Avenue", 200, 26),
+    21: ("Kentucky Avenue", 220, 26),
     23: ("Indiana Avenue", 220, 28),
-    25: ("B&O Railroad", 200, 25),
-    26: ("Atlantic Avenue", 300, 32),
+    24: ("Illinois Avenue", 240, 28),          # added missing Illinois Avenue from previous dataset
+    25: ("B&O Railroad", 200, 50),              # matching other railroads rent
+    26: ("Atlantic Avenue", 260, 32),
+    27: ("Ventnor Avenue", 260, 28),            # added missing Ventnor Avenue rent estimation
     28: ("Water Works", 75, 15),
-    31: ("Pacific Avenue", 340, 32),
-    32: ("North Carolina Avenue", 340, 34),
-    34: ("Pennsylvania Avenue", 200, 25),
-    35: ("Short Line", 200, 25),
-    37: ("Park Place", 340, 35),
+    29: ("Marvin Gardens", 280, 32),            # added Marvin Gardens with rent estimate
+    31: ("Pacific Avenue", 300, 32),
+    32: ("North Carolina Avenue", 300, 34),
+    34: ("Pennsylvania Avenue", 320, 28),
+    35: ("Short Line", 200, 50),
+    37: ("Park Place", 350, 35),
     39: ("Boardwalk", 400, 50),
 }
 

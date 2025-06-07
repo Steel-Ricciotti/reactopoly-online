@@ -19,11 +19,13 @@ export default function PlayerPropertyCards({
     {
       anchor: "bottom",
       offsetStyle: {
-        bottom: "-120px",
+        width: "800px", // adjusted reasonable width instead of 10000px
+        maxWidth: "1000px", // adjusted reasonable width instead of 10000px
+        bottom: "-150px",
         left: "50%",
         transform: "translateX(-50%)",
         flexDirection: "row",
-        maxWidth: "560px",
+        maxWidth: "700px",
         flexWrap: "wrap",
         gap: "8px",
       },
@@ -31,8 +33,9 @@ export default function PlayerPropertyCards({
     {
       anchor: "left",
       offsetStyle: {
-        top: "50%",
-        left: "-120px",
+        width: "150px",
+        top: "51%",
+        left: "-160px",
         transform: "translateY(-50%)",
         flexDirection: "column",
         maxHeight: "560px",
@@ -47,7 +50,7 @@ export default function PlayerPropertyCards({
         left: "50%",
         transform: "translateX(-50%)",
         flexDirection: "row",
-        maxWidth: "560px",
+        maxWidth: "700px",
         flexWrap: "wrap",
         gap: "8px",
       },
@@ -70,6 +73,14 @@ export default function PlayerPropertyCards({
     const cardIndices = ownedByPlayer[pid] || [];
     if (cardIndices.length === 0) return null;
 
+    // Group cards by group
+    const groups = {};
+    cardIndices.forEach((idx) => {
+      const group = PROPERTY_DATA[idx]?.group || "ungrouped";
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(idx);
+    });
+
     const style = {
       position: "absolute",
       display: "flex",
@@ -80,32 +91,87 @@ export default function PlayerPropertyCards({
       boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
       border: "1px solid #ccc",
       zIndex: 20,
+      gap: "20px",
+      flexWrap: "wrap",
     };
 
     return (
-      <div key={pid} style={style}>
-        {cardIndices.map((idx) => {
-          const { displayName, color } = PROPERTY_DATA[idx];
+      <div key={pid} style={style} title={playerInfo[pid]?.name || pid}>
+        {Object.entries(groups).map(([groupName, groupCards]) => {
+          const stackCount = groupCards.length;
+
           return (
             <div
-              key={idx}
-              className="text-xs font-semibold text-center truncate"
+              key={groupName}
               style={{
-                width: "90px",
-                height: "40px",
-                backgroundColor: color || "#ddd",
-                borderRadius: "6px",
-                boxShadow: "inset 0 0 5px rgba(0,0,0,0.2)",
-                padding: "4px 6px",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                position: "relative",
+                width: "140px",
+                height: "50px",
                 cursor: "default",
+                userSelect: "none",
               }}
-              title={displayName}
+              title={`${groupName} (${stackCount})`}
             >
-              {displayName.split(" ").slice(0, 2).join(" ")}
+              {/* Stack cards with offset and z-index */}
+              {groupCards.map((idx, i) => {
+                const { displayName, color } = PROPERTY_DATA[idx];
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      position: "absolute",
+                      top: `${i * 4}px`,
+                      left: `${i * 6}px`,
+                      width: "130px",
+                      height: "40px",
+                      backgroundColor: color || "#ddd",
+                      borderRadius: "6px",
+                      boxShadow: "inset 0 0 5px rgba(0,0,0,0.2)",
+                      padding: "4px 6px",
+                      color: "rgba(0, 0, 0, 0.93)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.75rem",
+                      fontWeight: "600",
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                      border: "1px solid rgba(0,0,0,0.2)",
+                      zIndex: i, // stack order: last card on top
+                      userSelect: "none",
+                    }}
+                    title={displayName}
+                  >
+                    {displayName.split(" ").slice(0, 2).join(" ")}
+                  </div>
+                );
+              })}
+
+              {/* Count badge if more than 1 */}
+              {stackCount > 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "-10px",
+                    right: "-10px",
+                    backgroundColor: "#e53e3e", // red-600
+                    color: "white",
+                    borderRadius: "50%",
+                    width: "22px",
+                    height: "22px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 0 4px rgba(0,0,0,0.4)",
+                    userSelect: "none",
+                  }}
+                >
+                  {stackCount}
+                </div>
+              )}
             </div>
           );
         })}
