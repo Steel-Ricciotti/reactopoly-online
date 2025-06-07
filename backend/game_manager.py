@@ -51,6 +51,8 @@ class GameManager:
             "playerOrder": [],    # ordered list of player_ids
             "currentIndex": 0,    # index into playerOrder for whose turn it is
             "properties": {},     # property_index → owner_player_id (None if unowned)
+            "diceOne":6,
+            "diceTwo":3,
         }
         # Set every buyable property to None (unowned)
         for idx in PROPERTY_DATA:
@@ -194,6 +196,8 @@ class GameManager:
         # Roll dice
         die1 = random.randint(1, 6)
         die2 = random.randint(1, 6)
+        room["diceOne"] = die1
+        room["diceTwo"] = die2
         steps = die1 + die2
 
         # Move position
@@ -240,6 +244,8 @@ class GameManager:
             "currentTurn": self._get_current_player_id(room["game_id"]),
             "players": {},
             "properties": room["properties"],
+            "diceOne":room["diceOne"],
+            "diceTwo":room["diceTwo"]
         }
 
         for pid, info in room["players"].items():

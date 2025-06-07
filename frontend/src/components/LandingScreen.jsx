@@ -69,20 +69,20 @@ const handleUnmute = () => {
           </button>
 
           <div className="mb-4 flex gap-2">
-            <input
+            {/* <input
               type="text"
               placeholder="Enter Game ID"
               value={gameIdInput}
               onChange={(e) => setGameIdInput(e.target.value)}
               className="border border-gray-300 rounded px-3 py-2 w-40"
-            />
-            <button
+            /> */}
+            {/* <button
               className="bg-red-600 hover:bg-red-700 transition-colors text-white rounded px-3 py-2 w-40"
               onClick={() => joinGame(gameIdInput, playerName)}
               disabled={!gameIdInput.trim() || !playerName.trim()}
             >
               Join Game
-            </button>
+            </button> */}
           </div>
 
           <button
@@ -98,6 +98,12 @@ const handleUnmute = () => {
           >
             Settings
           </button>
+          <button
+            className="bg-pink-300 hover:bg-gray-400 text-gray-800 font-bold px-4 py-2 rounded w-full mb-6"
+            onClick={() => setScreen("Video")}
+          >
+            Tutorial
+          </button>          
         </div>
 
         {/* Unmute button */}

@@ -7,6 +7,7 @@ import GameBoardScreen from "./components/GameBoardScreen";
 import PieceSelectionScreen  from "./components/PieceSelectionScreen";
 import LobbyScreen from "./components/LobbyScreen";
 import BrowseLobbyScreen from "./components/BrowseLobbyScreen"
+import VideoScreen from "./components/VideoScreen"
 function AppContent() {
   const { screen } = useContext(GameContext);
 
@@ -25,6 +26,8 @@ function AppContent() {
       return <LobbyScreen />;      
     case "BrowseLobby":
       return <BrowseLobbyScreen/>;
+    case "Video":
+      return <VideoScreen/>;
     default:
       return <LandingScreen />;
   }
