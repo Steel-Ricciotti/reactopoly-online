@@ -80,8 +80,10 @@ export default function GameBoardScreen() {
     properties: propertiesMap = {},
   } = gameState;
   const ownership = propertiesMap || {};
-  const theme = themes[themeName];
+  //const theme = themes[themeName];
   const myId = playerInfo.id;
+  console.log(currentTurn)
+  console.log(myId)
   const isMyTurn = currentTurn === myId;
 
   const indexToCoord = (idx) => {
@@ -104,8 +106,9 @@ export default function GameBoardScreen() {
             transform: "translate(-50%, -50%)",
             backgroundColor: pid === playerInfo.id ? "#4caf50" : "#e91e63",
           }}
+          title={players[pid].name}
         >
-          {players[pid].name[0].toUpperCase()}
+          {players[pid].piece || "🚗"}
         </span>
       ));
 
@@ -173,7 +176,7 @@ export default function GameBoardScreen() {
           style={seats[seatIndex].offsetStyle}
         >
           {cardIndices.map((idx) => {
-            const { displayName } = theme[idx];
+            const { displayName } = themes[idx];
             const shortName = displayName.split(" ").slice(0, 2).join(" ");
             return (
               <div
@@ -214,10 +217,12 @@ export default function GameBoardScreen() {
         <div className="board">
             
           {Array.from({ length: 40 }, (_, idx) => {
+            console.log(themes[themeName])
             const [row, col] = indexToCoord(idx);
-            const textColor = theme['titleTextColor']
-            const themeInfo = theme['properties'][idx];
+            const textColor = themes['titleTextColor'];
+            const themeInfo = themes[themeName]['properties'][idx];//  ? themes[themeName]['properties'][1] :  { displayName: "Kentucky Ave",      color: "#C62828" };
             const themeColor = themeInfo ? themeInfo.color : "#ffffff";
+            // const themeColor = "#ffffff";
             const propInfo = PROPERTY_DATA[idx];
             const ownerId = ownership[idx];
             const baseColor = propInfo ? propInfo.color : "#ffffff";
