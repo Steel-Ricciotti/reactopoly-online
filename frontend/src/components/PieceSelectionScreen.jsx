@@ -1,13 +1,13 @@
 import React, { useContext, useState } from "react";
-import { GameContext } from "../contexts/GameContext";
+import { GameContext, PIECES } from "../contexts/GameContext";
 
-const PIECES = [
-  { id: "car", label: "🚗" },
-  { id: "hat", label: "🎩" },
-  { id: "dog", label: "🐕" },
-  { id: "ship", label: "🚢" },
-  { id: "wheelbarrow", label: "🛒" },
-];
+// const PIECES = [
+//   { id: "car", label: "🚗" },
+//   { id: "hat", label: "🎩" },
+//   { id: "dog", label: "🐕" },
+//   { id: "ship", label: "🚢" },
+//   { id: "wheelbarrow", label: "🛒" },
+// ];
 
 export default function PieceSelectionScreen() {
   const {

@@ -9,6 +9,16 @@ import {
 } from "../utils/socket.jsx";
 import { THEMES } from "../utils/themes.js";
 import { MUSIC } from "../utils/music.js";
+
+export const PIECES = [
+  { id: "car", label: "🚗" },
+  { id: "hat", label: "🎩" },
+  { id: "dog", label: "🐕" },
+  { id: "ship", label: "🚢" },
+  { id: "wheelbarrow", label: "🛒" },
+];
+
+
 export const GameContext = createContext();
 
 export function GameProvider({ children }) {

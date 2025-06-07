@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useRef } from "react";
-import { GameContext } from "../contexts/GameContext";
+import { GameContext, PIECES } from "../contexts/GameContext";
 import DiceDisplay from "./DiceDisplay.jsx";
 import GameInfoPanel from "./GameInfoPanel.jsx";
 import centerLogo from "../assets/center-logo.png";
@@ -92,24 +92,25 @@ export default function GameBoardScreen() {
     return [40 - idx, 10];
   };
 
-  const tokensAt = (pos) =>
-    playerOrder
-      .filter((pid) => players[pid].position === pos)
-      .map((pid) => (
+const tokensAt = (pos) =>
+  playerOrder
+    .filter((pid) => players[pid].position === pos)
+    .map((pid) => {
+      const pieceId = players[pid].piece;
+      const pieceObj = PIECES.find(p => p.id === pieceId);
+      const label = pieceObj ? pieceObj.label : "$";
+      return (
         <span
           key={pid}
-          className="piece"
           style={{
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: pid === playerInfo.id ? "#4caf50" : "#e91e63",
+            fontSize: '2rem',
           }}
           title={players[pid].name}
         >
-          {players[pid].piece || "🚗"}
+          {label}
         </span>
-      ));
+      );
+    });
 
   const handleRoll = () => {
     if (rolling || !isMyTurn) return;
