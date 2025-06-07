@@ -208,7 +208,7 @@ const tokensAt = (pos) =>
 
     <div className="relative mx-auto" style={{ width: "600px", height: "600px" }}>
       {/* Left‐side info panel */}
-      <div className="absolute left-[-220px] top-0">
+      <div className="absolute left-[-420px] top-0">
         <GameInfoPanel />
       </div>
 
