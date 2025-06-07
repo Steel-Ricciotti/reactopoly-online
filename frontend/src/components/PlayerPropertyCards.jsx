@@ -91,7 +91,7 @@ export default function PlayerPropertyCards({
               key={idx}
               className="text-xs font-semibold text-center truncate"
               style={{
-                width: "70px",
+                width: "90px",
                 height: "40px",
                 backgroundColor: color || "#ddd",
                 borderRadius: "6px",
