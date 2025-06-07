@@ -40,14 +40,32 @@ def register_socket_handlers(sio):
         await sio.emit("game_created", {"game_id": game_id}, to=sid)
 
     @sio.event
+    async def start_game(sid, data):
+        game_id = data.get("game_id")
+        try:
+            state = gm.start_game(game_id)
+            # Notify all in the room
+            await sio.emit("game_started", state, room=game_id)
+            # Also send state_update (optional if not using game_started for state)
+            await sio.emit("state_update", state, room=game_id)
+        except Exception as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            
+    @sio.event
+    async def list_lobbies(sid):
+        games = gm.list_open_games()
+        await sio.emit("lobby_list", games, to=sid)
+
+    @sio.event
     async def join_game(sid, data):
         game_id = data.get("game_id")
         player_name = data.get("player_name")
+        piece = data.get("piece", "🚗")
         if not game_id or not player_name:
             await sio.emit("error", {"message": "Missing game_id or player_name"}, to=sid)
             return
         try:
-            player_id = gm.add_player(game_id, player_name, sid)
+            player_id = gm.add_player(game_id, player_name, sid, piece)
         except ValueError:
             await sio.emit("error", {"message": "Invalid game_id"}, to=sid)
             return
@@ -55,7 +73,7 @@ def register_socket_handlers(sio):
         await sio.enter_room(sid, game_id)
         await sio.emit(
             "player_joined",
-            {"player_id": player_id, "player_name": player_name},
+            {"player_id": player_id, "player_name": player_name, "piece": piece},
             room=game_id
         )
 
@@ -63,6 +81,7 @@ def register_socket_handlers(sio):
         state = gm._snapshot(gm.rooms[game_id])
         logger.debug(f"[join_game] Emitting state_update for {game_id}: {state}")
         await sio.emit("state_update", state, room=game_id)
+
 
     @sio.event
     async def roll_dice(sid, data):

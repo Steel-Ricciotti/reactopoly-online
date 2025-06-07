@@ -109,7 +109,20 @@ class GameManager:
         # Return updated snapshot
         return self._snapshot(room)
 
-    def add_player(self, game_id: str, player_name: str, sid: str) -> str:
+    def list_open_games(self):
+        for game_id, room in self.rooms.items():
+            print(game_id)
+        return [
+            {
+                "game_id": game_id,
+                "players": [player['name'] for player in room['players'].values()],
+                "num_players": len(room["players"])
+            }
+            for game_id, room in self.rooms.items()
+            if not room.get("started", False)
+        ]
+        
+    def add_player(self, game_id: str, player_name: str, sid: str, piece: str = "🚗") -> str:
         room = self.rooms.get(game_id)
         if room is None:
             raise ValueError("Invalid game_id")
@@ -124,9 +137,19 @@ class GameManager:
             "money": STARTING_CASH,
             "inJail": False,
             "bankrupt": False,
+            "piece": piece or "🚗"   # <-- store piece here
         }
         room["playerOrder"].append(player_id)
         return player_id
+
+    def start_game(self, game_id: str):
+        room = self.rooms.get(game_id)
+        if not room:
+            raise ValueError("Invalid game_id")
+        room["started"] = True
+        room["currentIndex"] = 0  # First player gets the turn
+        # Return snapshot
+        return self._snapshot(room)
 
     def _get_current_player_id(self, game_id: str) -> str:
         room = self.rooms[game_id]
@@ -211,19 +234,12 @@ class GameManager:
         return self._snapshot(room)
 
     def _snapshot(self, room: dict) -> dict:
-        """
-        Build a JSON-friendly dict of the room state:
-        - playerOrder
-        - currentTurn
-        - players: { id: { name, position, money, inJail, bankrupt } }
-        - properties: { property_index: owner_player_id (or None) }
-        """
         snapshot = {
             "game_id": room["game_id"],
             "playerOrder": room["playerOrder"],
             "currentTurn": self._get_current_player_id(room["game_id"]),
             "players": {},
-            "properties": room["properties"],  # <— include ownership in the snapshot
+            "properties": room["properties"],
         }
 
         for pid, info in room["players"].items():
@@ -233,6 +249,7 @@ class GameManager:
                 "money": info["money"],
                 "inJail": info["inJail"],
                 "bankrupt": info["bankrupt"],
+                "piece": info.get("piece", "🚗")   # <-- now included
             }
 
         return snapshot
