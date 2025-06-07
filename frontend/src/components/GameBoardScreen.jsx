@@ -41,7 +41,6 @@ export default function GameBoardScreen() {
     if (!socket) return;
 
     function onCanBuyProperty(data) {
-      console.log("Can Buy")
       setPendingBuy({
         index: data.property_index,
         name: data.property_name,
@@ -217,7 +216,6 @@ export default function GameBoardScreen() {
         <div className="board">
             
           {Array.from({ length: 40 }, (_, idx) => {
-            console.log(themes[themeName])
             const [row, col] = indexToCoord(idx);
             const textColor = themes['titleTextColor'];
             const themeInfo = themes[themeName]['properties'][idx];//  ? themes[themeName]['properties'][1] :  { displayName: "Kentucky Ave",      color: "#C62828" };
@@ -226,7 +224,6 @@ export default function GameBoardScreen() {
             const propInfo = PROPERTY_DATA[idx];
             const ownerId = ownership[idx];
             const baseColor = propInfo ? propInfo.color : "#ffffff";
-            console.log(themeInfo)
             const overlay = ownerId ? (
               <div className="absolute inset-0 bg-black opacity-20 rounded" />
             ) : null;
