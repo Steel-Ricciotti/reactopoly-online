@@ -27,7 +27,7 @@ export default function GameBoardScreen() {
   const [pendingBuy, setPendingBuy] = useState(null);
   const [rolling, setRolling] = useState(false);
   const [showBuyHouseModal, setShowBuyHouseModal] = useState(false);
-
+  const [drawnCard,setDrawnCard] = useState(null)
   // Helper to get eligible groups for buying houses
 function getEligibleGroups(gameState, myId) {
   if (!gameState) return [];
@@ -88,6 +88,17 @@ function getEligibleGroups(gameState, myId) {
 
   useEffect(() => {
     if (!socket) return;
+    function onDrawCard({ type, card }) {
+      setDrawnCard({ type, ...card });
+    }
+    socket.on("draw_card", onDrawCard);
+    return () => socket.off("draw_card", onDrawCard);
+  }, [socket]);
+
+
+
+  useEffect(() => {
+    if (!socket) return;
     function onCanBuyProperty(data) {
       setPendingBuy({
         index: data.property_index,
@@ -107,6 +118,40 @@ function getEligibleGroups(gameState, myId) {
       player_id: playerInfo.id,
     });
     setPendingBuy(null);
+  };
+
+
+  const resolveCardAction = () =>{
+    console.log(drawnCard);
+    switch(drawnCard.Action){
+      case 'advance_go':
+        socket.emit("advance_go",{ game_id: gameId,player_id: playerInfo.id,});
+        break;
+      case 'advance':
+        socket.emit("advance",{ game_id: gameId,player_id: playerInfo.id,spaces:drawnCard.spaces});
+        break;
+      case 'move_relative':
+        // socket.emit("move_relative",{ game_id: gameId,player_id: playerInfo.id, amount:drawnCard.amount});
+            socket.emit("advance", {
+      game_id: gameId,
+      player_id: playerInfo.id
+      ,spaces:drawnCard.spaces
+    });
+        break;
+      case 'pay':
+        socket.emit("pay",{ game_id: gameId,player_id: playerInfo.id, amount:drawnCard.amount});
+        break;
+      case 'collect':
+        socket.emit("collect",{ game_id: gameId,player_id: playerInfo.id, amount:drawnCard.amount});
+        break;                           
+      case 'go_to_jail':
+        socket.emit("go_to_jail",{ game_id: gameId,player_id: playerInfo.id});
+        break;     
+      default:
+        break;        
+    //type
+    //action
+    }
   };
 
   const passBuy = () => setPendingBuy(null);
@@ -309,6 +354,23 @@ function getEligibleGroups(gameState, myId) {
           </div>
         )}
 
+        {/*Chance/Community Chest Modals */}
+        {drawnCard && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h3>{drawnCard.type === "community_chest" ? "Community Chest" : "Chance"}</h3>
+              <p>{drawnCard.text}</p>
+              <button
+                onClick={() => {
+                  resolveCardAction(drawnCard);
+                  setDrawnCard(null);
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}        
         {/* --- Buy House/Hotel Modal & Button --- */}
 
         {showBuyHouseModal && (

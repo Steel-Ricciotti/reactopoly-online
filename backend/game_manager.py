@@ -37,7 +37,47 @@ PROPERTY_DATA = {
 BOARD_SIZE = 40
 PASS_GO_CASH = 200
 STARTING_CASH = 1500
+COMMUNITY_CHEST_CARDS  = [
+    {
+        "id": 1,
+        "text": "Advance to Go (Collect $200)",
+        "action": "advance_to_go"
+    },
+    {
+        "id": 2,
+        "text": "Bank error in your favor. Collect $200.",
+        "action": "collect_money",
+        "amount": 200
+    },
+    {
+        "id": 3,
+        "text": "Doctor's fees. Pay $50.",
+        "action": "pay_money",
+        "amount": 50
+    },
+    {
+        "id": 4,
+        "text": "Go to Jail. Go directly to jail, do not pass Go, do not collect $200.",
+        "action": "go_to_jail"
+    },]
 
+
+
+CHANCE_CARDS = [
+    {
+        "id": 1,
+        "text": "Go back 3 spaces.",
+        "action": "move_relative",
+        "amount": -3
+    },
+    {
+        "id": 2,
+        "text": "Advance to Illinois Ave.",
+        "action": "move_to",
+        "destination": 24
+    },
+    # ...add more cards...
+]
 class GameManager:
     def __init__(self):
         # Maps game_id (str) → game state dict
@@ -179,6 +219,62 @@ class GameManager:
             idx += 1
         return order[room["currentIndex"] % n]
 
+    def get_card(self, card_type):
+        if card_type == "community_chest":
+            return random.choice(COMMUNITY_CHEST_CARDS)
+        elif card_type == "chance":
+            return random.choice(CHANCE_CARDS)
+        else:
+            return None
+
+    def advance_go(self, game_id: str, player_id: str) -> dict:
+        room = self.rooms.get(game_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player = room["players"].get(player_id)
+        current_pid = self._get_current_player_id(game_id)
+        old_pos = player["position"]
+        new_pos = 0
+        if old_pos + steps >= BOARD_SIZE:
+            player["money"] += PASS_GO_CASH
+        player["position"] = new_pos
+        order = room["playerOrder"]
+        idx = order.index(player_id)
+        n = len(order)
+        next_idx = (idx + 1) % n
+        for _ in range(n):
+            next_pid = order[next_idx]
+            if not room["players"][next_pid]["bankrupt"]:
+                break
+            next_idx = (next_idx + 1) % n
+        room["currentIndex"] = next_idx
+        return self._snapshot(room)
+
+
+    def advance(self, game_id: str, player_id: str, spaces:int) -> dict:
+        room = self.rooms.get(game_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player = room["players"].get(player_id)
+        current_pid = self._get_current_player_id(game_id)
+        old_pos = player["position"]
+        new_pos = old_pos + spaces
+        if old_pos + steps >= BOARD_SIZE:
+            player["money"] += PASS_GO_CASH
+        player["position"] = new_pos
+        order = room["playerOrder"]
+        idx = order.index(player_id)
+        n = len(order)
+        next_idx = (idx + 1) % n
+        for _ in range(n):
+            next_pid = order[next_idx]
+            if not room["players"][next_pid]["bankrupt"]:
+                break
+            next_idx = (next_idx + 1) % n
+        room["currentIndex"] = next_idx
+        return self._snapshot(room)
+
+
     def roll_and_move(self, game_id: str, player_id: str) -> dict:
         room = self.rooms.get(game_id)
         if room is None:
@@ -191,8 +287,8 @@ class GameManager:
             raise PermissionError("Not your turn")
         if player["inJail"]:
             raise PermissionError("You are in jail and cannot roll")
-        die1 = random.randint(1, 6)
-        die2 = random.randint(1, 6)
+        die1 = 1;#random.randint(1, 6)
+        die2 = 1;#random.randint(1, 6)
         room["diceOne"] = die1
         room["diceTwo"] = die2
         steps = die1 + die2
@@ -209,8 +305,6 @@ class GameManager:
             owner_id = prop_data["owner"]
             player["money"] -= rent
             room["players"][owner_id]["money"] += rent
-
-        # Advance turn to next non-bankrupt player
         order = room["playerOrder"]
         idx = order.index(player_id)
         n = len(order)

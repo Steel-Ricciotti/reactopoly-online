@@ -1,7 +1,6 @@
 # backend/socket_handlers.py
 import logging
 from game_manager import GameManager
-
 logger = logging.getLogger("socketio")
 logger.setLevel(logging.DEBUG)
 
@@ -26,6 +25,61 @@ def register_socket_handlers(sio):
             return
         print("Buying property")
         logger.debug(f"[buy_property] Emitting state_update for {game_id}: {new_state}")
+        await sio.emit("state_update", new_state, room=game_id)
+
+    @sio.event
+    async def advance_go(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        # ...
+        try:
+            new_state = gm.advance_go(game_id, player_id)
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        logger.debug(f"[Advanced to Go] Emitting state_update for {game_id}: {new_state}")
+        await sio.emit("state_update", new_state, room=game_id)
+
+    @sio.event
+    async def pay(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        amount = data.get("amount")
+        # ...
+        try:
+            new_state = gm.pay(game_id, player_id,amount)
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        logger.debug(f"[Pay] Emitting state_update for {game_id}: {new_state}")
+        await sio.emit("state_update", new_state, room=game_id)
+
+    @sio.event
+    async def collect(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        amount = data.get("amount")
+        # ...
+        try:
+            new_state = gm.collect(game_id, player_id,amount)
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        logger.debug(f"[Pay] Emitting state_update for {game_id}: {new_state}")
+        await sio.emit("state_update", new_state, room=game_id)
+
+    @sio.event
+    async def advance(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        spaces = data.get('spaces')
+        # ...
+        try:
+            new_state = gm.advance(game_id, player_id, spaces)
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        logger.debug(f"[Advanced to Go] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
 
 
@@ -82,6 +136,17 @@ def register_socket_handlers(sio):
         logger.debug(f"[join_game] Emitting state_update for {game_id}: {state}")
         await sio.emit("state_update", state, room=game_id)
 
+    @sio.event
+    async def advance_go(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        group_index = data.get("group_index")
+        try:
+            state = gm.advance_go(game_id, player_id, group_index)
+            await sio.emit("state_update", state, room=game_id)
+        except Exception as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+
 
     @sio.event
     async def buy_house(sid, data):
@@ -94,6 +159,22 @@ def register_socket_handlers(sio):
         except Exception as e:
             await sio.emit("error", {"message": str(e)}, to=sid)
 
+    @sio.event
+    async def go_to_jail(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        if not game_id or not player_id:
+            await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
+            return
+        try:
+            new_state = gm.go_to_jail(game_id, player_id)
+        except PermissionError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+            
     @sio.event
     async def roll_dice(sid, data):
         game_id = data.get("game_id")
@@ -112,6 +193,17 @@ def register_socket_handlers(sio):
 
         logger.debug(f"[roll_dice] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
+        COMMUNITY_CHEST_INDICES = [2, 17, 33]
+        CHANCE_INDICES = [7, 22, 36]
+
+        player = new_state["players"][player_id]
+        pos = player["position"]
+        if pos in COMMUNITY_CHEST_INDICES:
+            card = gm.get_card("community_chest")
+            await sio.emit("draw_card", {"type": "community_chest", "card": card}, to=sid)
+        elif pos in CHANCE_INDICES:
+            card = gm.get_card("chance")
+            await sio.emit("draw_card", {"type": "chance", "card": card}, to=sid)
 
         # Find the socket for the player who just rolled (for now, we use sid, which should be player's sid)
         prop_info = gm.land_on_property(game_id, player_id)
