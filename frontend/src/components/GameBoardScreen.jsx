@@ -123,7 +123,8 @@ function getEligibleGroups(gameState, myId) {
 
   const resolveCardAction = () =>{
     console.log(drawnCard);
-    switch(drawnCard.Action){
+    if (!drawnCard) return;
+    switch(drawnCard.action){
       case 'advance_go':
         socket.emit("advance_go",{ game_id: gameId,player_id: playerInfo.id,});
         break;
@@ -149,9 +150,8 @@ function getEligibleGroups(gameState, myId) {
         break;     
       default:
         break;        
-    //type
-    //action
     }
+    setDrawnCard(null); // Clear modal
   };
 
   const passBuy = () => setPendingBuy(null);

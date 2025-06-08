@@ -219,6 +219,8 @@ class GameManager:
             idx += 1
         return order[room["currentIndex"] % n]
 
+
+#Community Chest/Cards Implementation
     def get_card(self, card_type):
         if card_type == "community_chest":
             return random.choice(COMMUNITY_CHEST_CARDS)
@@ -232,46 +234,72 @@ class GameManager:
         if room is None:
             raise ValueError("Invalid game_id")
         player = room["players"].get(player_id)
-        current_pid = self._get_current_player_id(game_id)
         old_pos = player["position"]
-        new_pos = 0
-        if old_pos + steps >= BOARD_SIZE:
-            player["money"] += PASS_GO_CASH
-        player["position"] = new_pos
-        order = room["playerOrder"]
-        idx = order.index(player_id)
-        n = len(order)
-        next_idx = (idx + 1) % n
-        for _ in range(n):
-            next_pid = order[next_idx]
-            if not room["players"][next_pid]["bankrupt"]:
-                break
-            next_idx = (next_idx + 1) % n
-        room["currentIndex"] = next_idx
+        if old_pos != 0:
+            player["money"] += PASS_GO_CASH  # Only pay if not already on GO
+        player["position"] = 0
+        # Advance turn!
+        self._advance_turn(room, player_id)
         return self._snapshot(room)
 
-
-    def advance(self, game_id: str, player_id: str, spaces:int) -> dict:
+    def advance(self, game_id: str, player_id: str, spaces: int) -> dict:
         room = self.rooms.get(game_id)
         if room is None:
             raise ValueError("Invalid game_id")
         player = room["players"].get(player_id)
-        current_pid = self._get_current_player_id(game_id)
         old_pos = player["position"]
-        new_pos = old_pos + spaces
-        if old_pos + steps >= BOARD_SIZE:
-            player["money"] += PASS_GO_CASH
+        new_pos = (old_pos + spaces) % BOARD_SIZE
+        if new_pos < old_pos:
+            player["money"] += PASS_GO_CASH  # Passed GO
         player["position"] = new_pos
+        # Advance turn!
+        self._advance_turn(room, player_id)
+        return self._snapshot(room)
+
+    def _advance_turn(self, room, current_pid):
         order = room["playerOrder"]
-        idx = order.index(player_id)
+        idx = order.index(current_pid)
         n = len(order)
         next_idx = (idx + 1) % n
+        # Skip bankrupt
         for _ in range(n):
             next_pid = order[next_idx]
             if not room["players"][next_pid]["bankrupt"]:
                 break
             next_idx = (next_idx + 1) % n
         room["currentIndex"] = next_idx
+
+    def pay(self, game_id: str, player_id: str, amount:int) -> dict:
+        room = self.rooms.get(game_id)
+        player = room["players"].get(player_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player["money"] -= amount
+        return self._snapshot(room)
+
+    def collect(self, game_id: str, player_id: str, amount:int) -> dict:
+        room = self.rooms.get(game_id)
+        player = room["players"].get(player_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player["money"] += amount
+        return self._snapshot(room)
+
+    def go_to_jail(self, game_id: str, player_id: str) -> dict:
+        room = self.rooms.get(game_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player = room["players"].get(player_id)
+        if player is None or player["bankrupt"]:
+            raise ValueError("Player invalid or bankrupt")
+        current_pid = self._get_current_player_id(game_id)
+        if current_pid != player_id:
+            raise PermissionError("Not your turn")
+        if player["inJail"]:
+            raise PermissionError("You are in jail and cannot roll")
+        player["inJail"] = True
+        new_pos = 10
+        player["position"] = new_pos
         return self._snapshot(room)
 
 
