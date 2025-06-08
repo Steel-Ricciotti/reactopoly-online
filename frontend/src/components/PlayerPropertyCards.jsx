@@ -7,9 +7,11 @@ export default function PlayerPropertyCards({
   playerInfo = {},
   PROPERTY_DATA = {},
 }) {
-  // Build map: playerId → array of property indices they own
+  // Map: playerId → array of property indices they own
   const ownedByPlayer = {};
-  for (const [idxStr, ownerId] of Object.entries(ownership)) {
+  for (const [idxStr, propObj] of Object.entries(ownership)) {
+    if (!propObj || !propObj.owner) continue;
+    const ownerId = propObj.owner;
     const idx = parseInt(idxStr, 10);
     if (!ownedByPlayer[ownerId]) ownedByPlayer[ownerId] = [];
     ownedByPlayer[ownerId].push(idx);
@@ -19,8 +21,8 @@ export default function PlayerPropertyCards({
     {
       anchor: "bottom",
       offsetStyle: {
-        width: "800px", // adjusted reasonable width instead of 10000px
-        maxWidth: "1000px", // adjusted reasonable width instead of 10000px
+        width: "800px",
+        maxWidth: "1000px",
         bottom: "-150px",
         left: "50%",
         transform: "translateX(-50%)",
@@ -99,7 +101,6 @@ export default function PlayerPropertyCards({
       <div key={pid} style={style} title={playerInfo[pid]?.name || pid}>
         {Object.entries(groups).map(([groupName, groupCards]) => {
           const stackCount = groupCards.length;
-
           return (
             <div
               key={groupName}
@@ -112,7 +113,6 @@ export default function PlayerPropertyCards({
               }}
               title={`${groupName} (${stackCount})`}
             >
-              {/* Stack cards with offset and z-index */}
               {groupCards.map((idx, i) => {
                 const { displayName, color } = PROPERTY_DATA[idx];
                 return (
@@ -147,15 +147,13 @@ export default function PlayerPropertyCards({
                   </div>
                 );
               })}
-
-              {/* Count badge if more than 1 */}
               {stackCount > 1 && (
                 <div
                   style={{
                     position: "absolute",
                     top: "-10px",
                     right: "-10px",
-                    backgroundColor: "#e53e3e", // red-600
+                    backgroundColor: "#e53e3e",
                     color: "white",
                     borderRadius: "50%",
                     width: "22px",
