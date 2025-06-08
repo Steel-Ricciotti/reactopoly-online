@@ -1,47 +1,42 @@
 # backend/game_manager.py
-"""
-GameManager v2: add turn order, player positions, money, and basic roll logic.
-Now also includes property ownership in every state snapshot.
-"""
-
 import random
 import uuid
 from typing import Optional
 
+# NOTE: Add the 'group' field to each property if you want house logic to work!
 PROPERTY_DATA = {
-    1:  ("Mediterranean Avenue", 60, 6),
-    3:  ("Baltic Avenue", 60, 6),
-    5:  ("Reading Railroad", 200, 50),
-    6:  ("Oriental Avenue", 100, 6),           # fixed rent (was 50, probably typo)
-    8:  ("Vermont Avenue", 100, 14),
-
-    9:  ("Connecticut Avenue", 120, 14),
-    12: ("Electric Company", 75, 15),
-    13: ("States Avenue", 140, 14),
-    15: ("Pennsylvania Railroad", 200, 50),   # matching Reading Railroad rent
-    16: ("St. James Place", 180, 20),
-    18: ("Tennessee Avenue", 180, 22),
-    19: ("New York Avenue", 200, 26),
-    21: ("Kentucky Avenue", 220, 26),
-    23: ("Indiana Avenue", 220, 28),
-    24: ("Illinois Avenue", 240, 28),          # added missing Illinois Avenue from previous dataset
-    25: ("B&O Railroad", 200, 50),              # matching other railroads rent
-    26: ("Atlantic Avenue", 260, 32),
-    27: ("Ventnor Avenue", 260, 28),            # added missing Ventnor Avenue rent estimation
-    28: ("Water Works", 75, 15),
-    29: ("Marvin Gardens", 280, 32),            # added Marvin Gardens with rent estimate
-    31: ("Pacific Avenue", 300, 32),
-    32: ("North Carolina Avenue", 300, 34),
-    34: ("Pennsylvania Avenue", 320, 28),
-    35: ("Short Line", 200, 50),
-    37: ("Park Place", 350, 35),
-    39: ("Boardwalk", 400, 50),
+    1:  ("Mediterranean Avenue", 60, 6, "brown"),
+    3:  ("Baltic Avenue", 60, 6, "brown"),
+    5:  ("Reading Railroad", 200, 50, "rail"),
+    6:  ("Oriental Avenue", 100, 6, "light-blue"),
+    8:  ("Vermont Avenue", 100, 14, "light-blue"),
+    9:  ("Connecticut Avenue", 120, 14, "light-blue"),
+    12: ("Electric Company", 75, 15, "utility"),
+    13: ("States Avenue", 140, 14, "pink"),
+    14: ("Virginia Avenue", 160, 14, "pink"),
+    15: ("Pennsylvania Railroad", 200, 50, "rail"),
+    16: ("St. James Place", 180, 20, "orange"),
+    18: ("Tennessee Avenue", 180, 22, "orange"),
+    19: ("New York Avenue", 200, 26, "orange"),
+    21: ("Kentucky Avenue", 220, 26, "red"),
+    23: ("Indiana Avenue", 220, 28, "red"),
+    24: ("Illinois Avenue", 240, 28, "red"),
+    25: ("B&O Railroad", 200, 50, "rail"),
+    26: ("Atlantic Avenue", 260, 32, "yellow"),
+    27: ("Ventnor Avenue", 260, 28, "yellow"),
+    28: ("Water Works", 75, 15, "utility"),
+    29: ("Marvin Gardens", 280, 32, "yellow"),
+    31: ("Pacific Avenue", 300, 32, "green"),
+    32: ("North Carolina Avenue", 300, 34, "green"),
+    34: ("Pennsylvania Avenue", 320, 28, "green"),
+    35: ("Short Line", 200, 50, "rail"),
+    37: ("Park Place", 350, 35, "blue"),
+    39: ("Boardwalk", 400, 50, "blue"),
 }
 
 BOARD_SIZE = 40
 PASS_GO_CASH = 200
 STARTING_CASH = 1500
-
 
 class GameManager:
     def __init__(self):
@@ -56,15 +51,39 @@ class GameManager:
             "players": {},        # player_id → { name, sid, position, money, inJail, bankrupt }
             "playerOrder": [],    # ordered list of player_ids
             "currentIndex": 0,    # index into playerOrder for whose turn it is
-            "properties": {},     # property_index → owner_player_id (None if unowned)
-            "diceOne":6,
-            "diceTwo":3,
+            "properties": {},     # property_index → { owner, houses, hotel }
+            "diceOne": 6,
+            "diceTwo": 3,
         }
-        # Set every buyable property to None (unowned)
         for idx in PROPERTY_DATA:
-            self.rooms[game_id]["properties"][idx] = None
-
+            self.rooms[game_id]["properties"][idx] = {
+                "owner": None,
+                "houses": 0,
+                "hotel": False
+            }
         return game_id
+
+    def buy_house(self, game_id, player_id, group_name):
+        room = self.rooms[game_id]
+        # Find eligible properties in the group
+        group_props = [idx for idx, pdata in PROPERTY_DATA.items() if pdata[3] == group_name]
+        # Ensure the player owns all properties in the group
+        if not all(room['properties'][idx]['owner'] == player_id for idx in group_props):
+            raise ValueError("Player does not own all properties in the group.")
+        # Find properties with less than 4 houses/hotel, by position order
+        for idx in sorted(group_props):
+            prop = room['properties'][idx]
+            if prop['houses'] < 4 and not prop['hotel']:
+                prop['houses'] += 1
+                # TODO: Deduct cash here (add cost logic)
+                break
+            elif prop['houses'] == 4 and not prop['hotel']:
+                prop['hotel'] = True
+                prop['houses'] = 0
+                # TODO: Deduct cash for hotel
+                break
+        # Return updated snapshot
+        return self._snapshot(room)
 
     def land_on_property(self, game_id: str, player_id: str) -> dict:
         room = self.rooms[game_id]
@@ -75,12 +94,13 @@ class GameManager:
         if not prop_info:
             return {"type": "not_property"}
 
-        owner = room["properties"].get(pos)
-        name, cost, base_rent = prop_info
+        prop_obj = room["properties"].get(pos)
+        owner_id = prop_obj["owner"] if prop_obj else None
+        name, cost, base_rent, _group = prop_info
 
-        if owner is None:
+        if owner_id is None:
             return {"type": "unowned", "index": pos, "name": name, "cost": cost}
-        elif owner == player_id:
+        elif owner_id == player_id:
             return {"type": "owned_by_self", "index": pos, "name": name}
         else:
             return {
@@ -88,7 +108,7 @@ class GameManager:
                 "index": pos,
                 "name": name,
                 "rent": base_rent,
-                "owner": owner,
+                "owner": owner_id,
             }
 
     def buy_property(self, game_id: str, player_id: str) -> dict:
@@ -97,29 +117,19 @@ class GameManager:
         pos = player["position"]
 
         if pos not in PROPERTY_DATA:
-            print("Not in position")
             raise ValueError("Not a property")
-
-        if room["properties"][pos] is not None:
-            print("Already Owned")
+        if room["properties"][pos]["owner"] is not None:
             raise ValueError("Already owned")
-
-        name, cost, _ = PROPERTY_DATA[pos]
+        name, cost, _rent, _group = PROPERTY_DATA[pos]
         if player["money"] < cost:
-            print("Too poor")
             raise ValueError("Insufficient funds")
-
         # Deduct cost and set ownership
         player["money"] -= cost
-        room["properties"][pos] = player_id
-        print("Success buying property:", pos)
-
+        room["properties"][pos]["owner"] = player_id
         # Return updated snapshot
         return self._snapshot(room)
 
     def list_open_games(self):
-        for game_id, room in self.rooms.items():
-            print(game_id)
         return [
             {
                 "game_id": game_id,
@@ -129,23 +139,22 @@ class GameManager:
             for game_id, room in self.rooms.items()
             if not room.get("started", False)
         ]
-        
+
     def add_player(self, game_id: str, player_name: str, sid: str, piece: str = "🚗") -> str:
         room = self.rooms.get(game_id)
         if room is None:
             raise ValueError("Invalid game_id")
-
         # Create a new player
         player_id = str(uuid.uuid4())[:6]
         room["players"][player_id] = {
             "id": player_id,
             "name": player_name,
             "sid": sid,
-            "position": 0,       # all players start on GO (space 0)
+            "position": 0,
             "money": STARTING_CASH,
             "inJail": False,
             "bankrupt": False,
-            "piece": piece or "🚗"   # <-- store piece here
+            "piece": piece or "🚗"
         }
         room["playerOrder"].append(player_id)
         return player_id
@@ -156,66 +165,42 @@ class GameManager:
             raise ValueError("Invalid game_id")
         room["started"] = True
         room["currentIndex"] = 0  # First player gets the turn
-        # Return snapshot
         return self._snapshot(room)
 
     def _get_current_player_id(self, game_id: str) -> str:
         room = self.rooms[game_id]
         order = room["playerOrder"]
         idx = room["currentIndex"]
-        # If the current player is bankrupt, skip forward until a non-bankrupt is found
         n = len(order)
         for _ in range(n):
             pid = order[idx % n]
             if not room["players"][pid]["bankrupt"]:
                 return pid
             idx += 1
-        # If everyone is bankrupt (shouldn’t happen), just return the first
         return order[room["currentIndex"] % n]
 
     def roll_and_move(self, game_id: str, player_id: str) -> dict:
-        """
-        1. Verify it’s player_id’s turn and they are not in jail.
-        2. Roll two dice, update position (with wrap), pay $200 if passing GO.
-        3. Handle rent payment if landing on someone else’s property.
-        4. Advance currentIndex to next non-bankrupt player.
-        5. Return the entire room state (so clients can re-render).
-        """
         room = self.rooms.get(game_id)
         if room is None:
             raise ValueError("Invalid game_id")
-
-        # Check that the caller is in the game and not bankrupt
         player = room["players"].get(player_id)
         if player is None or player["bankrupt"]:
             raise ValueError("Player invalid or bankrupt")
-
-        # Check turn order
         current_pid = self._get_current_player_id(game_id)
         if current_pid != player_id:
             raise PermissionError("Not your turn")
-
         if player["inJail"]:
-            # For now, skip the player if they’re in jail.
             raise PermissionError("You are in jail and cannot roll")
-
-        # Roll dice
         die1 = random.randint(1, 6)
         die2 = random.randint(1, 6)
         room["diceOne"] = die1
         room["diceTwo"] = die2
         steps = die1 + die2
-
-        # Move position
         old_pos = player["position"]
         new_pos = (old_pos + steps) % BOARD_SIZE
-
-        # If passed GO (old_pos + steps >= 40), pay $200
         if old_pos + steps >= BOARD_SIZE:
             player["money"] += PASS_GO_CASH
-
         player["position"] = new_pos
-        pos = player["position"]
 
         # Determine if rent is owed
         prop_data = self.land_on_property(game_id, player_id)
@@ -230,17 +215,12 @@ class GameManager:
         idx = order.index(player_id)
         n = len(order)
         next_idx = (idx + 1) % n
-
-        # Skip bankrupt players
         for _ in range(n):
             next_pid = order[next_idx]
             if not room["players"][next_pid]["bankrupt"]:
                 break
             next_idx = (next_idx + 1) % n
-
         room["currentIndex"] = next_idx
-
-        # Return a serializable snapshot of the room’s state
         return self._snapshot(room)
 
     def _snapshot(self, room: dict) -> dict:
@@ -249,11 +229,10 @@ class GameManager:
             "playerOrder": room["playerOrder"],
             "currentTurn": self._get_current_player_id(room["game_id"]),
             "players": {},
-            "properties": room["properties"],
-            "diceOne":room["diceOne"],
-            "diceTwo":room["diceTwo"]
+            "properties": room["properties"],  # now owner/houses/hotel for each
+            "diceOne": room["diceOne"],
+            "diceTwo": room["diceTwo"]
         }
-
         for pid, info in room["players"].items():
             snapshot["players"][pid] = {
                 "name": info["name"],
@@ -261,7 +240,6 @@ class GameManager:
                 "money": info["money"],
                 "inJail": info["inJail"],
                 "bankrupt": info["bankrupt"],
-                "piece": info.get("piece", "🚗")   # <-- now included
+                "piece": info.get("piece", "🚗")
             }
-
         return snapshot

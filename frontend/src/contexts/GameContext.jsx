@@ -28,6 +28,8 @@ export function GameProvider({ children }) {
   const [playerInfo, setPlayerInfo] = useState({ name: "", id: "" });
   const [selectedPiece, setSelectedPiece] = useState(null);
   const [diceResult, setDiceResult] = useState(null);
+  const [diceOne, setDiceOne] = useState(null);
+  const [diceTwo, setDiceTwo] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [themeName, setThemeName] = useState("classic"); // default
   const [musicName, setMusic] = useState("default"); // default
@@ -54,6 +56,15 @@ export function GameProvider({ children }) {
     }
   });
   };
+
+  const buyHouse = (groupIndex) => {
+  if (!socket || !gameId || !playerInfo.id) return;
+  socket.emit("buy_house", {
+    game_id: gameId,
+    player_id: playerInfo.id,
+    group_index: groupIndex
+  });
+};
 
   const startGame = () => {
   if (socket && gameId) {
@@ -144,6 +155,7 @@ export function GameProvider({ children }) {
         themes: THEMES,
         music: MUSIC,
         startGame,
+        buyHouse,
       }}
     >
       {children}

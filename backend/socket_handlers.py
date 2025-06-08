@@ -84,6 +84,17 @@ def register_socket_handlers(sio):
 
 
     @sio.event
+    async def buy_house(sid, data):
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        group_index = data.get("group_index")
+        try:
+            state = gm.buy_house(game_id, player_id, group_index)
+            await sio.emit("state_update", state, room=game_id)
+        except Exception as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+
+    @sio.event
     async def roll_dice(sid, data):
         game_id = data.get("game_id")
         player_id = data.get("player_id")

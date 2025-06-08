@@ -5,6 +5,7 @@ import GameInfoPanel from "./GameInfoPanel.jsx";
 import centerLogo from "../assets/center-logo.png";
 import { PROPERTY_DATA, GROUP_MAP } from "../utils/propertyData.js";
 import PlayerPropertyCards from "./PlayerPropertyCards";
+import BuyHouseModal from "./BuyHouseModal"; // You need to implement this
 import "../styles.css";
 
 export default function GameBoardScreen() {
@@ -15,31 +16,78 @@ export default function GameBoardScreen() {
     gameState,
     themeName,
     themes,
-    socket, gameId, playerInfo,
-    // buyProperty, // You don't need this for the modal, only for server-side confirmation now
+    socket,
+    gameId,
+    playerInfo,
+    buyHouse, // new context function
   } = useContext(GameContext);
+
   const audioRef = useRef(null);
   const [muted, setMuted] = useState(true);
-  // 🟢 Use only a single buy-modal state
   const [pendingBuy, setPendingBuy] = useState(null);
   const [rolling, setRolling] = useState(false);
-  // 🟠 REMOVED: const [pendingBuyIndex, setPendingBuyIndex] = useState(null);
-  const prevPositionRef = useRef(null);
+  const [showBuyHouseModal, setShowBuyHouseModal] = useState(false);
+
+  // Helper to get eligible groups for buying houses
+function getEligibleGroups(gameState, myId) {
+  if (!gameState) return [];
+  
+  const excluded = ["rail", "utility"];
+  // Find all color groups (as strings)
+  const colorGroups = Array.from(
+    new Set(
+      Object.values(PROPERTY_DATA)
+        .map(p => p.group)
+        .filter(g => !excluded.includes(g))
+    )
+  );
+ 
+  // For each group, log out who owns what
+  colorGroups.forEach(groupName => {
+    const propsInGroup = Object.entries(PROPERTY_DATA)
+      .filter(([idx, data]) => data.group === groupName)
+      .map(([idx, data]) => {
+        // Get the owner if it exists in gameState
+        const propIdx = parseInt(idx, 10);
+        const propOwner = gameState.properties[propIdx]?.owner || null;
+        return { idx: propIdx, owner: propOwner, name: data.displayName };
+      });
+    propsInGroup.forEach(({ idx, owner, name }) => {
+    });
+  });
+
+  // Now filter for groups the player owns entirely
+  const eligible = colorGroups.filter((groupName) => {
+    const propsInGroup = Object.entries(PROPERTY_DATA)
+      .filter(([idx, data]) => data.group === groupName)
+      .map(([idx]) => parseInt(idx, 10));
+    const ownsAll = propsInGroup.length > 0 && propsInGroup.every(
+      (idx) => {
+        const prop = gameState.properties[idx];
+        return prop && prop.owner === myId;
+      }
+    );
+    return ownsAll;
+  });
+
+  return eligible;
+}
+
+
+  const eligibleGroups = getEligibleGroups(gameState, playerInfo.id);
 
   const handleUnmute = () => {
-  if (audioRef.current) {
-    audioRef.current.muted = false;
-    audioRef.current.play().catch(() => {
-      console.log("Failed to play after unmute");
-    });
-    setMuted(false);
-  }
-};
+    if (audioRef.current) {
+      audioRef.current.muted = false;
+      audioRef.current.play().catch(() => {
+        console.log("Failed to play after unmute");
+      });
+      setMuted(false);
+    }
+  };
 
-  // 🟢 Listen for can_buy_property event
   useEffect(() => {
     if (!socket) return;
-
     function onCanBuyProperty(data) {
       setPendingBuy({
         index: data.property_index,
@@ -47,12 +95,11 @@ export default function GameBoardScreen() {
         cost: data.property_cost,
       });
     }
-
     socket.on("can_buy_property", onCanBuyProperty);
     return () => socket.off("can_buy_property", onCanBuyProperty);
   }, [socket]);
 
-  // 🟢 Call backend when user confirms
+  // Call backend when user confirms
   const confirmBuy = () => {
     if (!pendingBuy) return;
     socket.emit("buy_property", {
@@ -63,7 +110,6 @@ export default function GameBoardScreen() {
   };
 
   const passBuy = () => setPendingBuy(null);
-
 
   if (!gameState) {
     return (
@@ -78,13 +124,10 @@ export default function GameBoardScreen() {
     currentTurn,
     properties: propertiesMap = {},
   } = gameState;
-  const ownership = propertiesMap || {};
-  //const theme = themes[themeName];
   const myId = playerInfo.id;
-  console.log(currentTurn)
-  console.log(myId)
   const isMyTurn = currentTurn === myId;
 
+  // Board index to grid
   const indexToCoord = (idx) => {
     if (idx >= 0 && idx <= 10) return [0, 10 - idx];
     if (idx >= 11 && idx <= 20) return [idx - 10, 0];
@@ -92,25 +135,26 @@ export default function GameBoardScreen() {
     return [40 - idx, 10];
   };
 
-const tokensAt = (pos) =>
-  playerOrder
-    .filter((pid) => players[pid].position === pos)
-    .map((pid) => {
-      const pieceId = players[pid].piece;
-      const pieceObj = PIECES.find(p => p.id === pieceId);
-      const label = pieceObj ? pieceObj.label : "$";
-      return (
-        <span
-          key={pid}
-          style={{
-            fontSize: '2rem',
-          }}
-          title={players[pid].name}
-        >
-          {label}
-        </span>
-      );
-    });
+  // Token rendering
+  const tokensAt = (pos) =>
+    playerOrder
+      .filter((pid) => players[pid].position === pos)
+      .map((pid) => {
+        const pieceId = players[pid].piece;
+        const pieceObj = PIECES.find((p) => p.id === pieceId);
+        const label = pieceObj ? pieceObj.label : "$";
+        return (
+          <span
+            key={pid}
+            style={{
+              fontSize: "2rem",
+            }}
+            title={players[pid].name}
+          >
+            {label}
+          </span>
+        );
+      });
 
   const handleRoll = () => {
     if (rolling || !isMyTurn) return;
@@ -121,81 +165,9 @@ const tokensAt = (pos) =>
     }, 600);
   };
 
-  // ─────────── Seat‐Card Rendering ───────────
-  const renderPlayerCards = () => {
-    const ownedByPlayer = {};
-    for (const [idxStr, ownerId] of Object.entries(ownership)) {
-      const idx = parseInt(idxStr, 10);
-      if (!ownedByPlayer[ownerId]) ownedByPlayer[ownerId] = [];
-      ownedByPlayer[ownerId].push(idx);
-    }
-
-    const seats = [
-      {
-        offsetStyle: {
-          bottom: "-60px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          flexDirection: "row",
-        },
-      },
-      {
-        offsetStyle: {
-          top: "50%",
-          left: "-60px",
-          transform: "translateY(-50%)",
-          flexDirection: "column",
-        },
-      },
-      {
-        offsetStyle: {
-          top: "-60px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          flexDirection: "row",
-        },
-      },
-      {
-        offsetStyle: {
-          top: "50%",
-          right: "-60px",
-          transform: "translateY(-50%)",
-          flexDirection: "column",
-        },
-      },
-    ];
-
-    return playerOrder.slice(0, 4).map((pid, seatIndex) => {
-      const cardIndices = ownedByPlayer[pid] || [];
-      if (cardIndices.length === 0) return null;
-
-      return (
-        <div
-          key={pid}
-          className="absolute flex gap-1"
-          style={seats[seatIndex].offsetStyle}
-        >
-          {cardIndices.map((idx) => {
-            const { displayName } = themes[idx];
-            const shortName = displayName.split(" ").slice(0, 2).join(" ");
-            return (
-              <div
-                key={idx}
-                className="w-[50px] h-[30px] bg-white border border-gray-700 rounded shadow-sm flex items-center justify-center text-[8px] text-gray-800"
-                title={displayName}
-              >
-                {shortName}
-              </div>
-            );
-          })}
-        </div>
-      );
-    });
-  };
-
-  // ───────── Render ─────────
+  // ─────────── Render ───────────
   return (
-        <>
+    <>
       {/* Audio element for background music */}
       <audio
         ref={audioRef}
@@ -206,125 +178,152 @@ const tokensAt = (pos) =>
         autoPlay
       />
 
-    <div className="relative mx-auto" style={{ width: "600px", height: "600px" }}>
-      {/* Left‐side info panel */}
-      <div className="absolute left-[-420px] top-0">
-        <GameInfoPanel />
-      </div>
+      <div className="relative mx-auto" style={{ width: "600px", height: "600px" }}>
+        {/* Left‐side info panel */}
+        <div className="absolute left-[-220px] top-0">
+          <GameInfoPanel />
+                  {isMyTurn && (
+          <button
+            onClick={() => setShowBuyHouseModal(true)}
+            className="ml-4 px-4 py-2 bg-green-600 text-white rounded"
+          >
+            Buy House/Hotel
+          </button>
+        )}
+        </div>
 
-      {/* Board container */}
-      <div className="relative flex items-center justify-center">
-        <div className="board">
-            
-          {Array.from({ length: 40 }, (_, idx) => {
-            const [row, col] = indexToCoord(idx);
-            const textColor = themes['titleTextColor'];
-            const themeInfo = themes[themeName]['properties'][idx];//  ? themes[themeName]['properties'][1] :  { displayName: "Kentucky Ave",      color: "#C62828" };
-            const themeColor = themeInfo ? themeInfo.color : "#ffffff";
-            // const themeColor = "#ffffff";
-            const propInfo = PROPERTY_DATA[idx];
-            const ownerId = ownership[idx];
-            const baseColor = propInfo ? propInfo.color : "#ffffff";
-            const overlay = ownerId ? (
-              <div className="absolute inset-0 bg-black opacity-20 rounded" />
-            ) : null;
+        {/* Board container */}
+        <div className="relative flex items-center justify-center">
+          <div className="board">
+            {Array.from({ length: 40 }, (_, idx) => {
+              const [row, col] = indexToCoord(idx);
+              const themeInfo = themes[themeName]?.properties?.[idx];
+              const themeColor = themeInfo ? themeInfo.color : "#fff";
+              const propInfo = PROPERTY_DATA[idx];
+              const propState = propertiesMap[idx] || {};
+              const ownerId = propState.owner;
+              const numHouses = propState.houses || 0;
+              const hasHotel = propState.hotel;
 
-            return (
-              
-              <div
-                key={idx}
-                data-testid={`space-${idx}`}
-                className={`property ${
-                  idx <= 10
-                    ? "top-row"
-                    : idx >= 30 && idx <= 39
-                    ? "right-column"
-                    : idx >= 20 && idx <= 30
-                    ? "bottom-row"
-                    : idx >= 10 && idx <= 20
-                    ? "left-column"
-                    : ""
-                }`}
-                style={{
-                  gridRow: row + 1,
-                  gridColumn: col + 1,
-                  textColor:textColor,
-                  backgroundColor: themeColor,
-                  width: "54px",
-                  height: "54px",
-                }}
-                title={themeInfo ? themeInfo.displayName : `Space ${idx}`}
-              >
-                <div className="absolute top-0 left-0 text-[6px] p-1"
-                   style={{ textColor: textColor }}
-                   >
-                  {themeInfo ? themeInfo.displayName : idx}
+              return (
+                <div
+                  key={idx}
+                  data-testid={`space-${idx}`}
+                  className={`property ${
+                    idx <= 10
+                      ? "top-row"
+                      : idx >= 30 && idx <= 39
+                      ? "right-column"
+                      : idx >= 20 && idx <= 30
+                      ? "bottom-row"
+                      : idx >= 10 && idx <= 20
+                      ? "left-column"
+                      : ""
+                  }`}
+                  style={{
+                    gridRow: row + 1,
+                    gridColumn: col + 1,
+                    backgroundColor: themeColor,
+                    width: "54px",
+                    height: "54px",
+                  }}
+                  title={themeInfo ? themeInfo.displayName : `Space ${idx}`}
+                >
+                  <div className="absolute top-0 left-0 text-[6px] p-1">
+                    {themeInfo ? themeInfo.displayName : idx}
+                  </div>
+                  {tokensAt(idx)}
+                  {ownerId && <div className="absolute inset-0 bg-black opacity-20 rounded" />}
+
+                  {/* House/Hotel rendering: */}
+                  <div className="absolute bottom-1 left-1 flex gap-0.5">
+                    {!hasHotel &&
+                      [...Array(numHouses)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="inline-block w-2 h-2 bg-green-600 rounded-sm mx-[1px]"
+                          title="House"
+                        />
+                      ))}
+                    {hasHotel && (
+                      <div
+                        className="inline-block w-4 h-2 bg-red-600 rounded mx-[1px]"
+                        title="Hotel"
+                      />
+                    )}
+                  </div>
                 </div>
-                {tokensAt(idx)}
-                {overlay}
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* Center area (rows 2–10, cols 2–10) */}
-          <div className="center">
-            <img
-              src={centerLogo}
-              alt="Center Logo"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
-            <div className="dice-container">
-              <div className="dice-row">
-                <DiceDisplay diceResult={diceResult} rolling={rolling} />
+            {/* Center area (rows 2–10, cols 2–10) */}
+            <div className="center">
+              <img
+                src={centerLogo}
+                alt="Center Logo"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+              <div className="dice-container">
+                <div className="dice-row">
+                  <DiceDisplay diceResult={diceResult} rolling={rolling} />
+                </div>
+                <button
+                  className="roll-button"
+                  onClick={handleRoll}
+                  disabled={!isMyTurn || rolling}
+                >
+                  {rolling ? "Rolling…" : isMyTurn ? "Roll Dice" : "Not Your Turn"}
+                </button>
+                
               </div>
-              <button
-                className="roll-button"
-                onClick={handleRoll}
-                disabled={!isMyTurn || rolling}
-              >
-                {rolling ? "Rolling…" : isMyTurn ? "Roll Dice" : "Not Your Turn"}
-              </button>
             </div>
           </div>
+
+          {/* Seat‐card rendering, closer to board */}
+          <PlayerPropertyCards
+            ownership={propertiesMap}
+            playerOrder={playerOrder}
+            playerInfo={playerInfo}
+            PROPERTY_DATA={PROPERTY_DATA}
+          />
         </div>
 
-        {/* Seat‐card rendering, closer to board */}
-        <PlayerPropertyCards
-          ownership={ownership}
-          playerOrder={playerOrder}
-          playerInfo={playerInfo}
-          PROPERTY_DATA={PROPERTY_DATA}
-        />
+        {/* Buy‐property modal, backend-driven only */}
+        {pendingBuy && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <p className="mb-4">
+                Buy{" "}
+                <span className="font-semibold">{pendingBuy.name}</span> for $
+                <span className="font-semibold">{pendingBuy.cost}</span>?
+              </p>
+              <div className="flex justify-around">
+                <button className="modal-button" onClick={confirmBuy}>
+                  Buy
+                </button>
+                <button className="modal-button" onClick={passBuy}>
+                  Pass
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- Buy House/Hotel Modal & Button --- */}
+
+        {showBuyHouseModal && (
+          <BuyHouseModal
+            onClose={() => setShowBuyHouseModal(false)}
+            groups={eligibleGroups}
+            buyHouse={(groupIdx) => {
+              buyHouse(groupIdx);
+              setShowBuyHouseModal(false);
+            }}
+          />
+        )}
       </div>
 
-      {/* 🟢 Buy‐property modal, backend-driven only */}
-      {pendingBuy && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <p className="mb-4">
-              Buy{" "}
-              <span className="font-semibold">
-                {pendingBuy.name}
-              </span>{" "}
-              for $
-              <span className="font-semibold">
-                {pendingBuy.cost}
-              </span>
-              ?
-            </p>
-            <div className="flex justify-around">
-              <button className="modal-button" onClick={confirmBuy}>
-                Buy
-              </button>
-              <button className="modal-button" onClick={passBuy}>
-                Pass
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-          {/* Unmute button */}
+      {/* Unmute button */}
       {muted && (
         <button
           onClick={handleUnmute}
