@@ -61,6 +61,7 @@ def register_socket_handlers(sio):
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
         print("Go to jail test 2")
+        await sio.emit("state_update", new_state, room=game_id)
             
 
     @sio.event

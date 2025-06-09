@@ -61,13 +61,13 @@ COMMUNITY_CHEST_CARDS  = [
         "action": "go_to_jail"
     },]
 
-COMMUNITY_CHEST_CARDS  = [
-    {
-        "id": 4,
-        "text": "Go to Jail. Go directly to jail, do not pass Go, do not collect $200.",
-        "action": "go_to_jail"
-    },
-]
+# COMMUNITY_CHEST_CARDS  = [
+#     {
+#         "id": 4,
+#         "text": "Go to Jail. Go directly to jail, do not pass Go, do not collect $200.",
+#         "action": "go_to_jail"
+#     },
+# ]
 
 CHANCE_CARDS = [
     {
@@ -294,6 +294,8 @@ class GameManager:
         print("cOLLECTED mONDY")
         return self._snapshot(room)
 
+
+
     def go_to_jail(self, game_id: str, player_id: str) -> dict:
         print("Go to jail test 3")
         room = self.rooms.get(game_id)
@@ -305,12 +307,26 @@ class GameManager:
         current_pid = self._get_current_player_id(game_id)
         if current_pid != player_id:
             raise PermissionError("Not your turn")
-        if player["inJail"]:
-            raise PermissionError("You are in jail and cannot roll")
         player["inJail"] = True
-        new_pos = 10
-        player["position"] = new_pos
-        print("Go to jail test 4")
+        player["position"] = 10
+
+       # Determine if rent is owed
+        prop_data = self.land_on_property(game_id, player_id)
+        if prop_data["type"] == "pay_rent":
+            rent = prop_data["rent"]
+            owner_id = prop_data["owner"]
+            player["money"] -= rent
+            room["players"][owner_id]["money"] += rent
+        order = room["playerOrder"]
+        idx = order.index(player_id)
+        n = len(order)
+        next_idx = (idx + 1) % n
+        for _ in range(n):
+            next_pid = order[next_idx]
+            if not room["players"][next_pid]["bankrupt"]:
+                break
+            next_idx = (next_idx + 1) % n
+        room["currentIndex"] = 
         return self._snapshot(room)
 
 
@@ -326,8 +342,8 @@ class GameManager:
             raise PermissionError("Not your turn")
         if player["inJail"]:
             raise PermissionError("You are in jail and cannot roll")
-        die1 = 1;#random.randint(1, 6)
-        die2 = 1;#random.randint(1, 6)
+        die1 = random.randint(1, 6)
+        die2 = random.randint(1, 6)
         room["diceOne"] = die1
         room["diceTwo"] = die2
         steps = die1 + die2
