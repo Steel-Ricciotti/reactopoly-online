@@ -326,7 +326,7 @@ class GameManager:
             if not room["players"][next_pid]["bankrupt"]:
                 break
             next_idx = (next_idx + 1) % n
-        room["currentIndex"] = 
+        room["currentIndex"] = next_idx
         return self._snapshot(room)
 
 
