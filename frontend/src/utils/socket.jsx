@@ -1,7 +1,12 @@
 import { io } from "socket.io-client";
 
 export function initSocket() {
-  const socket = io("http://localhost:8000");
+  const baseURL =
+    window.location.hostname === "localhost"
+      ? "http://localhost:8000"
+      : undefined; // undefined means "same origin"
+  
+  const socket = io();  
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
   });
