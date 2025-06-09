@@ -86,15 +86,14 @@ function getEligibleGroups(gameState, myId) {
     }
   };
 
-  useEffect(() => {
-    if (!socket) return;
-    function onDrawCard({ type, card }) {
-      setDrawnCard({ type, ...card });
-    }
-    socket.on("draw_card", onDrawCard);
-    return () => socket.off("draw_card", onDrawCard);
-  }, [socket]);
-
+useEffect(() => {
+  if (!socket) return;
+  function onDrawCard({ type, card }) {
+    setDrawnCard({ type, ...card });
+  }
+  socket.on("draw_card", onDrawCard);
+  return () => socket.off("draw_card", onDrawCard);
+}, [socket]);
 
 
   useEffect(() => {
@@ -121,38 +120,63 @@ function getEligibleGroups(gameState, myId) {
   };
 
 
-  const resolveCardAction = () =>{
-    console.log(drawnCard);
-    if (!drawnCard) return;
-    switch(drawnCard.action){
-      case 'advance_go':
-        socket.emit("advance_go",{ game_id: gameId,player_id: playerInfo.id,});
-        break;
-      case 'advance':
-        socket.emit("advance",{ game_id: gameId,player_id: playerInfo.id,spaces:drawnCard.spaces});
-        break;
-      case 'move_relative':
-        // socket.emit("move_relative",{ game_id: gameId,player_id: playerInfo.id, amount:drawnCard.amount});
-            socket.emit("advance", {
-      game_id: gameId,
-      player_id: playerInfo.id
-      ,spaces:drawnCard.spaces
-    });
-        break;
-      case 'pay':
-        socket.emit("pay",{ game_id: gameId,player_id: playerInfo.id, amount:drawnCard.amount});
-        break;
-      case 'collect':
-        socket.emit("collect",{ game_id: gameId,player_id: playerInfo.id, amount:drawnCard.amount});
-        break;                           
-      case 'go_to_jail':
-        socket.emit("go_to_jail",{ game_id: gameId,player_id: playerInfo.id});
-        break;     
-      default:
-        break;        
-    }
-    setDrawnCard(null); // Clear modal
-  };
+const resolveCardAction = () => {
+  if (!drawnCard) return;
+
+  // Use .action (not .Action) from backend
+  switch (drawnCard.action) {
+    case "advance_to_go":
+      console.log("Advancing to go")
+      socket.emit("advance_go", { game_id: gameId, player_id: playerInfo.id });
+      
+      break;
+
+    case "move_to":
+      socket.emit("advance", {
+        game_id: gameId,
+        player_id: playerInfo.id,
+        spaces: (drawnCard.destination ?? 0) - (gameState.players[playerInfo.id]?.position ?? 0)
+      });
+      break;
+
+    case "move_relative":
+      socket.emit("advance", {
+        game_id: gameId,
+        player_id: playerInfo.id,
+        spaces: drawnCard.amount
+      });
+      break;
+
+    case "pay_money":
+      socket.emit("pay", {
+        game_id: gameId,
+        player_id: playerInfo.id,
+        amount: drawnCard.amount
+      });
+      break;
+
+    case "collect_money":
+      socket.emit("collect", {
+        game_id: gameId,
+        player_id: playerInfo.id,
+        amount: drawnCard.amount
+      });
+      break;
+
+    case "go_to_jail":
+      console.log("Go to jail")
+      socket.emit("go_to_jail", { game_id: gameId, player_id: playerInfo.id });
+      break;
+
+    // Add other actions here as you add new cards!
+
+    default:
+      // fallback, just close modal
+      break;
+  }
+  setDrawnCard(null);
+};
+
 
   const passBuy = () => setPendingBuy(null);
 
@@ -355,7 +379,7 @@ function getEligibleGroups(gameState, myId) {
         )}
 
         {/*Chance/Community Chest Modals */}
-        {drawnCard && (
+        {/* {drawnCard && (
           <div className="modal-overlay">
             <div className="modal">
               <h3>{drawnCard.type === "community_chest" ? "Community Chest" : "Chance"}</h3>
@@ -370,7 +394,24 @@ function getEligibleGroups(gameState, myId) {
               </button>
             </div>
           </div>
-        )}        
+        )}         */}
+
+{drawnCard && (
+  <div className="modal-overlay z-50">
+    <div className="modal">
+      <h2 className="font-bold mb-2 text-lg">{drawnCard.type === "community_chest" ? "Community Chest" : "Chance"}</h2>
+      <p className="mb-4">{drawnCard.text}</p>
+      <div className="flex gap-4 justify-center">
+        <button
+          className="modal-button bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={resolveCardAction}
+        >
+          Resolve
+        </button>
+      </div>
+    </div>
+  </div>
+)}        
         {/* --- Buy House/Hotel Modal & Button --- */}
 
         {showBuyHouseModal && (

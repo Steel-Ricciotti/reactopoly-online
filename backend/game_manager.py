@@ -61,7 +61,13 @@ COMMUNITY_CHEST_CARDS  = [
         "action": "go_to_jail"
     },]
 
-
+COMMUNITY_CHEST_CARDS  = [
+    {
+        "id": 4,
+        "text": "Go to Jail. Go directly to jail, do not pass Go, do not collect $200.",
+        "action": "go_to_jail"
+    },
+]
 
 CHANCE_CARDS = [
     {
@@ -230,6 +236,7 @@ class GameManager:
             return None
 
     def advance_go(self, game_id: str, player_id: str) -> dict:
+        print("Test One")
         room = self.rooms.get(game_id)
         if room is None:
             raise ValueError("Invalid game_id")
@@ -240,6 +247,7 @@ class GameManager:
         player["position"] = 0
         # Advance turn!
         self._advance_turn(room, player_id)
+        print("Test Two")
         return self._snapshot(room)
 
     def advance(self, game_id: str, player_id: str, spaces: int) -> dict:
@@ -283,9 +291,11 @@ class GameManager:
         if room is None:
             raise ValueError("Invalid game_id")
         player["money"] += amount
+        print("cOLLECTED mONDY")
         return self._snapshot(room)
 
     def go_to_jail(self, game_id: str, player_id: str) -> dict:
+        print("Go to jail test 3")
         room = self.rooms.get(game_id)
         if room is None:
             raise ValueError("Invalid game_id")
@@ -300,6 +310,7 @@ class GameManager:
         player["inJail"] = True
         new_pos = 10
         player["position"] = new_pos
+        print("Go to jail test 4")
         return self._snapshot(room)
 
 

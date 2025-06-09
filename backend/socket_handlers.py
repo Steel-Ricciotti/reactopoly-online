@@ -27,18 +27,41 @@ def register_socket_handlers(sio):
         logger.debug(f"[buy_property] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
 
+#Community Chest/Cards Implementation
+
     @sio.event
     async def advance_go(sid, data):
         game_id = data.get("game_id")
         player_id = data.get("player_id")
         # ...
+        print("Advancing to go test 1")
         try:
             new_state = gm.advance_go(game_id, player_id)
         except ValueError as e:
             await sio.emit("error", {"message": str(e)}, to=sid)
             return
+        print("Advancing to go test 2")    
         logger.debug(f"[Advanced to Go] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
+
+    @sio.event
+    async def go_to_jail(sid, data):
+        print("Go to jail test 1")
+        game_id = data.get("game_id")
+        player_id = data.get("player_id")
+        if not game_id or not player_id:
+            await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
+            return
+        try:
+            new_state = gm.go_to_jail(game_id, player_id)
+        except PermissionError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        except ValueError as e:
+            await sio.emit("error", {"message": str(e)}, to=sid)
+            return
+        print("Go to jail test 2")
+            
 
     @sio.event
     async def pay(sid, data):
@@ -81,7 +104,7 @@ def register_socket_handlers(sio):
             return
         logger.debug(f"[Advanced to Go] Emitting state_update for {game_id}: {new_state}")
         await sio.emit("state_update", new_state, room=game_id)
-
+   
 
     @sio.event
     async def disconnect(sid):
@@ -136,16 +159,6 @@ def register_socket_handlers(sio):
         logger.debug(f"[join_game] Emitting state_update for {game_id}: {state}")
         await sio.emit("state_update", state, room=game_id)
 
-    @sio.event
-    async def advance_go(sid, data):
-        game_id = data.get("game_id")
-        player_id = data.get("player_id")
-        group_index = data.get("group_index")
-        try:
-            state = gm.advance_go(game_id, player_id, group_index)
-            await sio.emit("state_update", state, room=game_id)
-        except Exception as e:
-            await sio.emit("error", {"message": str(e)}, to=sid)
 
 
     @sio.event
@@ -159,22 +172,7 @@ def register_socket_handlers(sio):
         except Exception as e:
             await sio.emit("error", {"message": str(e)}, to=sid)
 
-    @sio.event
-    async def go_to_jail(sid, data):
-        game_id = data.get("game_id")
-        player_id = data.get("player_id")
-        if not game_id or not player_id:
-            await sio.emit("error", {"message": "Missing game_id or player_id"}, to=sid)
-            return
-        try:
-            new_state = gm.go_to_jail(game_id, player_id)
-        except PermissionError as e:
-            await sio.emit("error", {"message": str(e)}, to=sid)
-            return
-        except ValueError as e:
-            await sio.emit("error", {"message": str(e)}, to=sid)
-            return
-            
+
     @sio.event
     async def roll_dice(sid, data):
         game_id = data.get("game_id")
