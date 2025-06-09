@@ -37,7 +37,53 @@ PROPERTY_DATA = {
 BOARD_SIZE = 40
 PASS_GO_CASH = 200
 STARTING_CASH = 1500
+COMMUNITY_CHEST_CARDS  = [
+    {
+        "id": 1,
+        "text": "Advance to Go (Collect $200)",
+        "action": "advance_to_go"
+    },
+    {
+        "id": 2,
+        "text": "Bank error in your favor. Collect $200.",
+        "action": "collect_money",
+        "amount": 200
+    },
+    {
+        "id": 3,
+        "text": "Doctor's fees. Pay $50.",
+        "action": "pay_money",
+        "amount": 50
+    },
+    {
+        "id": 4,
+        "text": "Go to Jail. Go directly to jail, do not pass Go, do not collect $200.",
+        "action": "go_to_jail"
+    },]
 
+# COMMUNITY_CHEST_CARDS  = [
+#     {
+#         "id": 4,
+#         "text": "Go to Jail. Go directly to jail, do not pass Go, do not collect $200.",
+#         "action": "go_to_jail"
+#     },
+# ]
+
+CHANCE_CARDS = [
+    {
+        "id": 1,
+        "text": "Go back 3 spaces.",
+        "action": "move_relative",
+        "amount": -3
+    },
+    {
+        "id": 2,
+        "text": "Advance to Illinois Ave.",
+        "action": "move_to",
+        "destination": 24
+    },
+    # ...add more cards...
+]
 class GameManager:
     def __init__(self):
         # Maps game_id (str) → game state dict
@@ -179,6 +225,111 @@ class GameManager:
             idx += 1
         return order[room["currentIndex"] % n]
 
+
+#Community Chest/Cards Implementation
+    def get_card(self, card_type):
+        if card_type == "community_chest":
+            return random.choice(COMMUNITY_CHEST_CARDS)
+        elif card_type == "chance":
+            return random.choice(CHANCE_CARDS)
+        else:
+            return None
+
+    def advance_go(self, game_id: str, player_id: str) -> dict:
+        print("Test One")
+        room = self.rooms.get(game_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player = room["players"].get(player_id)
+        old_pos = player["position"]
+        if old_pos != 0:
+            player["money"] += PASS_GO_CASH  # Only pay if not already on GO
+        player["position"] = 0
+        # Advance turn!
+        self._advance_turn(room, player_id)
+        print("Test Two")
+        return self._snapshot(room)
+
+    def advance(self, game_id: str, player_id: str, spaces: int) -> dict:
+        room = self.rooms.get(game_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player = room["players"].get(player_id)
+        old_pos = player["position"]
+        new_pos = (old_pos + spaces) % BOARD_SIZE
+        if new_pos < old_pos:
+            player["money"] += PASS_GO_CASH  # Passed GO
+        player["position"] = new_pos
+        # Advance turn!
+        self._advance_turn(room, player_id)
+        return self._snapshot(room)
+
+    def _advance_turn(self, room, current_pid):
+        order = room["playerOrder"]
+        idx = order.index(current_pid)
+        n = len(order)
+        next_idx = (idx + 1) % n
+        # Skip bankrupt
+        for _ in range(n):
+            next_pid = order[next_idx]
+            if not room["players"][next_pid]["bankrupt"]:
+                break
+            next_idx = (next_idx + 1) % n
+        room["currentIndex"] = next_idx
+
+    def pay(self, game_id: str, player_id: str, amount:int) -> dict:
+        room = self.rooms.get(game_id)
+        player = room["players"].get(player_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player["money"] -= amount
+        return self._snapshot(room)
+
+    def collect(self, game_id: str, player_id: str, amount:int) -> dict:
+        room = self.rooms.get(game_id)
+        player = room["players"].get(player_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player["money"] += amount
+        print("cOLLECTED mONDY")
+        return self._snapshot(room)
+
+
+
+    def go_to_jail(self, game_id: str, player_id: str) -> dict:
+        print("Go to jail test 3")
+        room = self.rooms.get(game_id)
+        if room is None:
+            raise ValueError("Invalid game_id")
+        player = room["players"].get(player_id)
+        if player is None or player["bankrupt"]:
+            raise ValueError("Player invalid or bankrupt")
+        current_pid = self._get_current_player_id(game_id)
+        if current_pid != player_id:
+            raise PermissionError("Not your turn")
+        player["inJail"] = True
+        player["position"] = 10
+
+       # Determine if rent is owed
+        prop_data = self.land_on_property(game_id, player_id)
+        if prop_data["type"] == "pay_rent":
+            rent = prop_data["rent"]
+            owner_id = prop_data["owner"]
+            player["money"] -= rent
+            room["players"][owner_id]["money"] += rent
+        order = room["playerOrder"]
+        idx = order.index(player_id)
+        n = len(order)
+        next_idx = (idx + 1) % n
+        for _ in range(n):
+            next_pid = order[next_idx]
+            if not room["players"][next_pid]["bankrupt"]:
+                break
+            next_idx = (next_idx + 1) % n
+        room["currentIndex"] = 
+        return self._snapshot(room)
+
+
     def roll_and_move(self, game_id: str, player_id: str) -> dict:
         room = self.rooms.get(game_id)
         if room is None:
@@ -209,8 +360,6 @@ class GameManager:
             owner_id = prop_data["owner"]
             player["money"] -= rent
             room["players"][owner_id]["money"] += rent
-
-        # Advance turn to next non-bankrupt player
         order = room["playerOrder"]
         idx = order.index(player_id)
         n = len(order)
