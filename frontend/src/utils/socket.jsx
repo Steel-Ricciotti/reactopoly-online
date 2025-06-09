@@ -6,7 +6,7 @@ export function initSocket() {
       ? "http://localhost:8000"
       : undefined; // undefined means "same origin"
   
-  const socket = io(baseURL);  
+  const socket = io();  
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
   });
