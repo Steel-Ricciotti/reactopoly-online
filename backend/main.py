@@ -1,23 +1,35 @@
-from fastapi import FastAPI
+import os
 import uvicorn
 import socketio
-import os
-from socket_handlers import register_socket_handlers
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-# Create FastAPI app and Socket.IO server
-app = FastAPI()
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-asgi_app = socketio.ASGIApp(sio, other_asgi_app=app)
-app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "public"), html=True), name="static")
-# Register our event handlers (in socket_handlers.py)
-register_socket_handlers(sio)
+from socket_handlers import register_socket_handlers
 
-@app.get("/health")
+# 1) Your real FastAPI app
+fastapi_app = FastAPI()
+
+# 1a) Serve your React build at the root
+fastapi_app.mount(
+    "/",
+    StaticFiles(directory=os.path.join(os.path.dirname(__file__), "public"), html=True),
+    name="static",
+)
+
+# 1b) Any other HTTP endpoints
+@fastapi_app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
-if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(asgi_app, host="0.0.0.0", port=port)
+# 2) Create and configure the Socket.IO server
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 
+# 3) Wrap FastAPI in the Socket.IO ASGI app, and call _this_ "app"
+app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
+
+# 4) Register your Socket.IO event handlers
+register_socket_handlers(sio)
+
+# 5) When run directly, start uvicorn on **app**
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
