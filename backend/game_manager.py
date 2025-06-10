@@ -342,8 +342,8 @@ class GameManager:
             raise PermissionError("Not your turn")
         if player["inJail"]:
             raise PermissionError("You are in jail and cannot roll")
-        die1 = 1#random.randint(1, 6)
-        die2 = 3#random.randint(1, 6)
+        die1 = random.randint(1, 6)
+        die2 = random.randint(1, 6)
         room["diceOne"] = die1
         room["diceTwo"] = die2
         steps = die1 + die2
