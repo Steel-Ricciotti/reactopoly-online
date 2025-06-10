@@ -194,9 +194,14 @@ def register_socket_handlers(sio):
         await sio.emit("state_update", new_state, room=game_id)
         COMMUNITY_CHEST_INDICES = [2, 17, 33]
         CHANCE_INDICES = [7, 22, 36]
+        TAX_INDICES = [4,38]
 
         player = new_state["players"][player_id]
         pos = player["position"]
+        if pos in TAX_INDICES:
+            print("Pay tax")
+            await sio.emit("draw_tax", to=sid)
+
         if pos in COMMUNITY_CHEST_INDICES:
             card = gm.get_card("community_chest")
             await sio.emit("draw_card", {"type": "community_chest", "card": card}, to=sid)
