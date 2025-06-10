@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { GameContext } from "../contexts/GameContext";
+import { PIECES, getLabelById, GameContext } from "../contexts/GameContext";
 
 export default function LobbyScreen() {
   const { gameState, playerInfo, startGame } = useContext(GameContext);
@@ -16,7 +16,7 @@ export default function LobbyScreen() {
         <ul className="mb-6">
           {playerOrder.map((pid) => (
             <li key={pid} className="flex items-center gap-2 mb-2">
-              <span className="text-xl">{players[pid]?.piece || "❓"}</span>
+              <span className="text-xl">{getLabelById(players[pid]?.piece) || "❓"}</span>
               <span>{players[pid]?.name || "?"}</span>
               {pid === playerOrder[0] && <span className="ml-2 text-green-500">(Host)</span>}
               {pid === playerInfo.id && <span className="ml-2 text-blue-500">(You)</span>}

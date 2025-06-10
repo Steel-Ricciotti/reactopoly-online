@@ -17,7 +17,10 @@ export const PIECES = [
   { id: "ship", label: "🚢" },
   { id: "wheelbarrow", label: "🛒" },
 ];
-
+export function getLabelById(id) {
+  const piece = PIECES.find(p => p.id === id);
+  return piece ? piece.label : undefined;
+}
 
 export const GameContext = createContext();
 
