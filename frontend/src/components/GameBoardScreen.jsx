@@ -28,6 +28,7 @@ export default function GameBoardScreen() {
   const [rolling, setRolling] = useState(false);
   const [showBuyHouseModal, setShowBuyHouseModal] = useState(false);
   const [drawnCard,setDrawnCard] = useState(null)
+  const [taxCard, setTaxCard] = useState(null)
   // Helper to get eligible groups for buying houses
 function getEligibleGroups(gameState, myId) {
   if (!gameState) return [];
@@ -96,6 +97,19 @@ useEffect(() => {
 }, [socket]);
 
 
+useEffect(() => {
+  if (!socket) return;
+  function onTaxCard() {
+    setTaxCard(true);
+  }
+  socket.on("draw_tax", onTaxCard);
+  return () => socket.off("draw_tax", onTaxCard);
+}, [socket]);
+
+
+
+
+
   useEffect(() => {
     if (!socket) return;
     function onCanBuyProperty(data) {
@@ -119,7 +133,15 @@ useEffect(() => {
     setPendingBuy(null);
   };
 
+  const resolveTax = () => {
+    setTaxCard(false);
+    socket.emit("pay", {
+      game_id: gameId,
+      player_id: playerInfo.id,
+      amount: 75
+    });
 
+  }
 const resolveCardAction = () => {
   if (!drawnCard) return;
 
@@ -411,7 +433,23 @@ const resolveCardAction = () => {
       </div>
     </div>
   </div>
-)}        
+)}      
+{taxCard && (
+  <div className="modal-overlay z-50">
+    <div className="modal">
+      <h2 className="font-bold mb-2 text-lg"></h2>
+      <p className="mb-4">Pay Tax!</p>
+      <div className="flex gap-4 justify-center">
+        <button
+          className="modal-button bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={resolveTax}
+        >
+          Resolve
+        </button>
+      </div>
+    </div>
+  </div>
+)}     
         {/* --- Buy House/Hotel Modal & Button --- */}
 
         {showBuyHouseModal && (

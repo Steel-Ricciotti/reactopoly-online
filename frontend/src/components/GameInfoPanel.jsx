@@ -1,6 +1,6 @@
 // frontend/src/components/GameInfoPanel.jsx
 import React, { useContext } from "react";
-import { GameContext } from "../contexts/GameContext";
+import { PIECES, getLabelById, GameContext } from "../contexts/GameContext";
 import "../styles.css";
 
 export default function GameInfoPanel() {
@@ -44,7 +44,7 @@ return (
             `}
           >
             <div className="flex items-center gap-2">
-              <span className="text-lg">{info.piece.label || "🚗"}</span>
+              <span className="text-lg">{getLabelById(info.piece) || "🚗"}</span>
               <span>
                 {/* {info.name} */}
                 {pid === playerInfo.id && <span className="ml-1 text-xs text-green-600">(You)</span>}
