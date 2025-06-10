@@ -1,6 +1,12 @@
+import classicLogo from "../assets/center-logo.png";
+import darkLogo from "../assets/center-logo.png";
+import hauntedLogo from "../assets/center-logo-spooky.png";
+
+
 export const THEMES = {
   classic: {
     name: "Classic",
+    logo:classicLogo,
     properties: {
       0:  { displayName: "Go",                 color: "#FFFFFF" },
       1:  { displayName: "Mediterranean Avenue", color: "#8B4513" },
@@ -47,6 +53,7 @@ export const THEMES = {
 
   dark: {
     name: "Dark",
+    logo:hauntedLogo,
     properties: {
       0:  { displayName: "Go",                 color: "#212121" },
       1:  { displayName: "Mediterranean Ave",  color: "#4E342E" },
@@ -93,6 +100,7 @@ export const THEMES = {
 
   haunted: {
     name: "Spooky",
+    logo:hauntedLogo,
     properties: {
       0:  { displayName: "Haunted Gate",       color: "#220022" },
       1:  { displayName: "Cursed Mire",        color: "#3A1A1A" },

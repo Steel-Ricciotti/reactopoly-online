@@ -3,6 +3,9 @@ import { GameContext, PIECES } from "../contexts/GameContext";
 import DiceDisplay from "./DiceDisplay.jsx";
 import GameInfoPanel from "./GameInfoPanel.jsx";
 import centerLogo from "../assets/center-logo.png";
+import darkLogo from "../assets/center-logo.png";
+import hauntedLogo from "../assets/center-logo-spooky.png";
+
 import { PROPERTY_DATA, GROUP_MAP } from "../utils/propertyData.js";
 import PlayerPropertyCards from "./PlayerPropertyCards";
 import BuyHouseModal from "./BuyHouseModal"; // You need to implement this
@@ -29,6 +32,15 @@ export default function GameBoardScreen() {
   const [showBuyHouseModal, setShowBuyHouseModal] = useState(false);
   const [drawnCard,setDrawnCard] = useState(null)
   const [taxCard, setTaxCard] = useState(null)
+
+   // Pick logo based on themeName
+  const themeLogo =
+    themes.name === "classic"
+      ? centerLogo
+      : themes.name === "dark"
+      ? darkLogo
+      : hauntedLogo;
+
   // Helper to get eligible groups for buying houses
 function getEligibleGroups(gameState, myId) {
   if (!gameState) return [];
@@ -350,7 +362,7 @@ const resolveCardAction = () => {
             {/* Center area (rows 2–10, cols 2–10) */}
             <div className="center">
               <img
-                src={centerLogo}
+                src={themeLogo}
                 alt="Center Logo"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
