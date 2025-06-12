@@ -1,4 +1,4 @@
-Online multi-player version of my reactopoly game.
+Online multi-player version of reactopoly.
 
 Available to play for free at:
 https://reactopoly-online-g0hrg0b4fthdf6cg.canadacentral-01.azurewebsites.net/
